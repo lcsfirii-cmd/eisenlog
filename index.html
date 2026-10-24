@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Eisenlog</title>
+<meta name="description" content="Trainings-App: sagt dir bei jedem Satz, was du machen sollst.">
+<meta name="theme-color" content="#eceff3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1116" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Eisenlog">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">Eisen<span>log</span></div>
+    <button class="icon-btn" data-act="settings" aria-label="Einstellungen und Sicherung">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+  <div id="banner"></div>
+  <nav class="week" id="week" aria-label="Diese Woche"></nav>
+  <section class="hero" id="hero"></section>
+  <main class="list" id="list"><p class="note">Lädt …</p></main>
+</div>
+
+<div class="timer" id="timer" hidden>
+  <div class="tin">
+    <div class="tlab" id="tlab">Pause</div>
+    <div class="tclock" id="tclock">0:00</div>
+    <div class="tbtns" id="tbtns"></div>
+    <div class="tprog"><div id="tprog"></div></div>
+  </div>
+</div>
+<div class="sheet-bg" id="sheetBg" hidden data-act="close"></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true"><div class="shin" id="shin"></div></div>
+<input type="file" id="fileIn" accept=".json,application/json,text/plain" hidden>
+
+<script src="logic.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
