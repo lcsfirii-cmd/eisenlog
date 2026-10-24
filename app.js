@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '1.0.0';
+const APP_V = '1.0.2';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -27,10 +27,12 @@ let wake = null, timerInt = null, tOver = null, hold = null;
    Doppelt: IndexedDB (groß, dauerhaft) und localStorage (sofort). Beim Start gewinnt der neuere Stand. */
 
 function fresh() {
-  return { v: 1, created: Date.now(), saved: 0, plan: makePlan(), ov: {}, inc: {}, eq: {}, sessions: [], draft: null, backupAt: 0, theme: 'auto' };
+  return { v: 1, created: Date.now(), saved: 0, plan: makePlan(), planV: PLAN_V, ov: {}, inc: {}, eq: {}, sessions: [], draft: null, backupAt: 0, theme: 'auto' };
 }
 function migrate(s) {
   const f = fresh();
+  // Der Plan ist noch nicht in der App änderbar, also einfach den neuen Startplan übernehmen
+  if (s.planV !== PLAN_V) { s.plan = f.plan; s.planV = PLAN_V; }
   for (const k in f) if (s[k] === undefined) s[k] = f[k];
   return s;
 }
@@ -897,11 +899,10 @@ function registerSW() {
   const hadCtl = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('sw.js').then(reg => {
     const found = w => { V.update = w; renderBanner(); };
+    const watch = w => { if (w) w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) found(w); }); };
     if (reg.waiting && hadCtl) found(reg.waiting);
-    reg.addEventListener('updatefound', () => {
-      const w = reg.installing;
-      if (w) w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) found(w); });
-    });
+    watch(reg.installing); // Update lief schon beim Laden der Seite an
+    reg.addEventListener('updatefound', () => watch(reg.installing));
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
   }).catch(() => {});
   let done = false;

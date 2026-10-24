@@ -1,6 +1,6 @@
 /* Eisenlog – Offline-Speicher für die App-Dateien.
    Bei jeder neuen Version VERSION hochzählen, dann holt sich das iPhone die neuen Dateien. */
-const VERSION = 'eisenlog-1.0.0';
+const VERSION = 'eisenlog-1.0.2';
 const FILES = ['./', 'index.html', 'app.css', 'logic.js', 'app.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'];
 

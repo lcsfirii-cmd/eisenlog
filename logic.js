@@ -39,13 +39,15 @@ const EX = {
   rev_bf: ['Reverse Butterfly', 'stack'],
   scott: ['Scott-Curls Maschine', 'stack'],
   curl_schraeg: ['Schrägbank-Curls Kurzhanteln', 'kh'],
-  rdl: ['Rumänisches Kreuzheben', 'lh'],
+  rdl: ['Rumänisches Kreuzheben mit Kurzhanteln', 'kh'],
   presse_so: ['Beinpresse, Füße hoch', 'stack'],
   pend_so: ['Pendulum / V-Squat', 'scheibe'],
   adduktoren: ['Adduktoren-Maschine', 'stack'],
 };
 
-const KNEE = 'Nur so tief, wie das Knie es mag';
+// Bei jeder Änderung am Startplan hochzählen, dann übernimmt die App den neuen Plan beim Start
+const PLAN_V = 2;
+const KNEE ='Nur so tief, wie das Knie es mag';
 // Startplan Block 1: [id, Sätze, Wdh. von, Wdh. bis, Pause s, Hinweis]
 const PLAN_RAW = {
   ober: ['Oberkörper', 'Schultern, Brust, Rücken, Arme', [
@@ -82,7 +84,7 @@ const PLAN_RAW = {
     ['scott', 3, 8, 12, 75, ''],
     ['curl_schraeg', 2, 10, 12, 75, '']]],
   beine: ['Beine', 'Beinbeuger, Po, Adduktoren, Waden', [
-    ['rdl', 3, 8, 10, 150, ''],
+    ['rdl', 3, 8, 12, 150, 'Gewicht pro Hantel, Zughilfen, Hüfte nach hinten'],
     ['bb_sitz', 4, 10, 15, 75, ''],
     ['presse_so', 3, 12, 15, 120, ''],
     ['pend_so', 2, 10, 12, 120, KNEE],
