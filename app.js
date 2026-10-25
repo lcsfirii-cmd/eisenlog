@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '1.0.3';
+const APP_V = '1.0.4';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -445,7 +445,7 @@ function platesHTML(id, x) {
   const s = x.sets.find(z => !z.done) || x.sets[x.sets.length - 1];
   const eq = eqOf(id), p = platesFor(eq, s && s.w);
   if (!p || !p.plates.length) return '';
-  return `${eq === 'lh' ? 'Stange 20 + pro Seite' : 'Pro Seite'} ${p.plates.map(v => `<span class="pl" style="background:var(${PLATE_COL[v]})${v === 5 ? ';color:#222' : ''}">${fw(v)}</span>`).join('')}${p.rest > 0 ? ` + ${fw(p.rest)}` : ''}`;
+  return `${eq === 'lh' ? 'Stange 20 + pro Seite' : 'Scheiben'} ${p.plates.map(v => `<span class="pl" style="background:var(${PLATE_COL[v]})${v === 5 ? ';color:#222' : ''}">${fw(v)}</span>`).join('')}${p.rest > 0 ? ` + ${fw(p.rest)}` : ''}`;
 }
 const wValHTML = s => s.w == null ? 'kg wählen' : `${fw(s.w)}<small>kg</small>`;
 const rValHTML = s => `${s.r}<small>Wdh.</small>`;
@@ -501,7 +501,7 @@ function paintEx(id) {
 function renderSummary(s) {
   const k = s.day, ids = Object.keys(s.ex);
   const sets = ids.reduce((a, id) => a + s.ex[id].length, 0);
-  const vol = ids.reduce((a, id) => a + s.ex[id].reduce((b, x) => b + x.w * x.r, 0) * (eqOf(id) === 'scheibe' ? 2 : 1), 0); // Scheiben-Geräte: pro Seite eingetragen
+  const vol = ids.reduce((a, id) => a + s.ex[id].reduce((b, x) => b + x.w * x.r, 0), 0);
   const min = s.start ? Math.max(1, Math.round((s.end - s.start) / 60000)) : null;
   const prs = [], nxt = [];
   for (const id of ids) {
@@ -614,7 +614,7 @@ function exSheet(id) {
     <p class="note">So viel ändern Plus/Minus und das Steigern.</p>
     <p class="sec">Gerät</p>
     <div class="pick">${Object.keys(EQ).map(k => `<button data-act="eq" data-id="${id}" data-v="${k}"${eq === k ? ' class="on"' : ''}>${EQ[k]}</button>`).join('')}</div>
-    <p class="note">Bei Scheiben-Geräten trägst du das Gewicht pro Seite ein, die App zeigt die Scheiben dafür. Bei der Langhantel das Gesamtgewicht.</p>`);
+    <p class="note">Bei Scheiben-Geräten trägst du ein, was auf einer Aufnahme hängt, die App zeigt die Scheiben dafür. Bei der Langhantel das Gesamtgewicht.</p>`);
   bindChart(ser);
 }
 

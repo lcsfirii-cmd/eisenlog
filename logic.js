@@ -6,7 +6,7 @@ const DAY_KEYS = ['ober', 'unter', 'push', 'pull', 'beine'];
 // Wochentag (0 = Sonntag) → Einheit. Mo und Mi frei.
 const WEEK0 = { 2: 'ober', 4: 'unter', 5: 'push', 6: 'pull', 0: 'beine' };
 
-// Gerätearten. scheibe = Gewicht pro Seite (so trägt Lucas es ein), lh = Gesamtgewicht mit 20-kg-Stange.
+// Gerätearten. scheibe = Gewicht auf einer Aufnahme (Pendulum hat nur eine), lh = Gesamtgewicht mit 20-kg-Stange.
 const EQ = { scheibe: 'Scheiben', lh: 'Langhantel', stack: 'Steckgewicht', kh: 'Kurzhanteln' };
 const STEPS = [1.25, 2.5, 5, 10];
 
