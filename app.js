@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '1.0.4';
+const APP_V = '1.0.5';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -77,7 +77,6 @@ function flush() { if (saveT) save(); }
 /* ---------- Kleine Helfer ---------- */
 
 const incOf = id => S.inc[id] || 1.25;
-const eqOf = id => S.eq[id] || (EX[id] ? EX[id][1] : 'stack');
 const exName = id => EX[id] ? EX[id][0] : id;
 const dayName = k => S.plan[k] ? S.plan[k].n : 'Training';
 function dayFor(date) {
@@ -425,7 +424,7 @@ function exCard(D, id, ix, nx, isFirst) {
     <div class="plan" id="pl-${id}">${planHTML(D, id)}</div>
     ${isFirst ? `<div class="warm" id="wu-${id}">${warmHTML(id, x)}</div>` : ''}
     <div class="sets">${x.sets.map((s, i) => rowHTML(D, id, i, nx)).join('')}</div>
-    <div class="exf"><button class="add" data-act="addset" data-id="${id}">+ Satz</button><div class="plates" id="pt-${id}">${platesHTML(id, x)}</div></div>
+    <div class="exf"><button class="add" data-act="addset" data-id="${id}">+ Satz</button></div>
   </article>`;
 }
 
@@ -439,13 +438,6 @@ function warmHTML(id, x) {
   const s = x.sets[0], w0 = s.tw != null ? s.tw : s.w, inc = incOf(id);
   if (!(w0 > 0)) return '';
   return `Aufwärmen: ${fw(roundW(w0 * 0.5, inc))} kg × 10 · ${fw(roundW(w0 * 0.75, inc))} kg × 5`;
-}
-const PLATE_COL = { 25: '--p25', 20: '--p20', 15: '--p15', 10: '--p10', 5: '--p5', 2.5: '--p2', 1.25: '--p1' };
-function platesHTML(id, x) {
-  const s = x.sets.find(z => !z.done) || x.sets[x.sets.length - 1];
-  const eq = eqOf(id), p = platesFor(eq, s && s.w);
-  if (!p || !p.plates.length) return '';
-  return `${eq === 'lh' ? 'Stange 20 + pro Seite' : 'Scheiben'} ${p.plates.map(v => `<span class="pl" style="background:var(${PLATE_COL[v]})${v === 5 ? ';color:#222' : ''}">${fw(v)}</span>`).join('')}${p.rest > 0 ? ` + ${fw(p.rest)}` : ''}`;
 }
 const wValHTML = s => s.w == null ? 'kg wählen' : `${fw(s.w)}<small>kg</small>`;
 const rValHTML = s => `${s.r}<small>Wdh.</small>`;
@@ -494,7 +486,6 @@ function paintEx(id) {
   });
   const pl = $(`pl-${id}`); if (pl) pl.innerHTML = planHTML(D, id);
   const wu = $(`wu-${id}`); if (wu) wu.innerHTML = warmHTML(id, x);
-  const pt = $(`pt-${id}`); if (pt) pt.innerHTML = platesHTML(id, x);
   if (D.rest) tick();
 }
 
@@ -598,7 +589,7 @@ function exSheet(id) {
     const pc = Math.round((E / ser[0].v - 1) * 1000) / 10;
     delta = `${pc >= 0 ? '+' : '−'}${fw(Math.abs(pc))} % seit ${fmtD(ser[0].s.date)}`;
   }
-  const inc = incOf(id), eq = eqOf(id), i = inD ? D.order.indexOf(id) : -1;
+  const inc = incOf(id), i = inD ? D.order.indexOf(id) : -1;
   const acts = !inD ? '' : `<div class="two"><button class="btn ghost" data-act="mv" data-id="${id}" data-d="-1"${i <= 0 ? ' disabled' : ''}>Früher machen</button><button class="btn ghost" data-act="mv" data-id="${id}" data-d="1"${i >= D.order.length - 1 ? ' disabled' : ''}>Später machen</button></div>
     <button class="btn ghost" data-act="skip" data-id="${id}">${D.skip[id] ? 'Zurückholen' : 'Heute überspringen'}</button>`;
   openSheet(`<div class="shh"><div><div class="eyebrow">${e ? `${e.s} × ${e.lo}–${e.hi} · Pause ${restTxt(e.rest)}` : 'Übung'}</div><h2>${esc(exName(id))}</h2></div><button class="icon-btn" data-act="close" aria-label="Schließen">${ICON_X}</button></div>
@@ -612,9 +603,7 @@ function exSheet(id) {
     <p class="sec">Gewichtsschritt</p>
     <div class="pick">${STEPS.map(v => `<button data-act="inc" data-id="${id}" data-v="${v}"${inc === v ? ' class="on"' : ''}>${fw(v)} kg</button>`).join('')}</div>
     <p class="note">So viel ändern Plus/Minus und das Steigern.</p>
-    <p class="sec">Gerät</p>
-    <div class="pick">${Object.keys(EQ).map(k => `<button data-act="eq" data-id="${id}" data-v="${k}"${eq === k ? ' class="on"' : ''}>${EQ[k]}</button>`).join('')}</div>
-    <p class="note">Bei Scheiben-Geräten trägst du ein, was auf einer Aufnahme hängt, die App zeigt die Scheiben dafür. Bei der Langhantel das Gesamtgewicht.</p>`);
+    `);
   bindChart(ser);
 }
 
@@ -807,7 +796,6 @@ function act(a, b) {
       if (D && D.ex[id] && !D.ex[id].sets.some(s => s.done) && S.plan[D.day] && S.plan[D.day].x.some(e => e.id === id)) D.ex[id] = buildEx(entryOf(D.day, id));
       save(); exSheet(id); renderMain(); break;
     }
-    case 'eq': S.eq[id] = b.dataset.v; save(); exSheet(id); renderMain(); break;
     case 'fin': V.fin = true; renderMain(); break;
     case 'finno': V.fin = false; renderMain(); break;
     case 'finyes': finish(); break;

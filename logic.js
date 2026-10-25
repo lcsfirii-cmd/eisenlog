@@ -219,15 +219,3 @@ function adjustAfter(e, x, i, inc, keepMan) {
     delete s.warn;
   }
 }
-
-/* ---------- Scheiben pro Seite ---------- */
-
-const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
-function platesFor(eq, w) {
-  if (!(w > 0) || (eq !== 'scheibe' && eq !== 'lh')) return null;
-  let side = eq === 'lh' ? (w - 20) / 2 : w;
-  if (side <= 0) return null;
-  const out = [];
-  for (const p of PLATES) while (side >= p - 1e-9) { out.push(p); side -= p; }
-  return { plates: out, rest: r2(side) };
-}
