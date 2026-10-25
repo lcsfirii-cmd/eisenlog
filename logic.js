@@ -6,7 +6,7 @@ const DAY_KEYS = ['ober', 'unter', 'push', 'pull', 'beine'];
 // Wochentag (0 = Sonntag) → Einheit. Mo und Mi frei.
 const WEEK0 = { 2: 'ober', 4: 'unter', 5: 'push', 6: 'pull', 0: 'beine' };
 
-// Gerätearten. scheibe = Gesamtgewicht beider Seiten, lh = 20-kg-Stange plus Scheiben.
+// Gerätearten. scheibe = Gewicht pro Seite (so trägt Lucas es ein), lh = Gesamtgewicht mit 20-kg-Stange.
 const EQ = { scheibe: 'Scheiben', lh: 'Langhantel', stack: 'Steckgewicht', kh: 'Kurzhanteln' };
 const STEPS = [1.25, 2.5, 5, 10];
 
@@ -46,7 +46,7 @@ const EX = {
 };
 
 // Bei jeder Änderung am Startplan hochzählen, dann übernimmt die App den neuen Plan beim Start
-const PLAN_V = 2;
+const PLAN_V = 3;
 const KNEE ='Nur so tief, wie das Knie es mag';
 // Startplan Block 1: [id, Sätze, Wdh. von, Wdh. bis, Pause s, Hinweis]
 const PLAN_RAW = {
@@ -54,7 +54,7 @@ const PLAN_RAW = {
     ['sm_masch', 4, 12, 20, 75, 'Schultern zuerst'],
     ['hs_incl', 3, 6, 10, 150, ''],
     ['row_kabel', 3, 8, 12, 120, 'Zughilfen'],
-    ['sd_masch', 2, 8, 12, 120, 'Gesamtgewicht beider Seiten'],
+    ['sd_masch', 2, 8, 12, 120, 'Gewicht pro Seite'],
     ['lat_einarm', 2, 10, 15, 90, ''],
     ['rev_kabel', 3, 12, 20, 75, ''],
     ['curl_kabel', 2, 10, 15, 75, ''],
@@ -225,7 +225,7 @@ function adjustAfter(e, x, i, inc, keepMan) {
 const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
 function platesFor(eq, w) {
   if (!(w > 0) || (eq !== 'scheibe' && eq !== 'lh')) return null;
-  let side = (w - (eq === 'lh' ? 20 : 0)) / 2;
+  let side = eq === 'lh' ? (w - 20) / 2 : w;
   if (side <= 0) return null;
   const out = [];
   for (const p of PLATES) while (side >= p - 1e-9) { out.push(p); side -= p; }

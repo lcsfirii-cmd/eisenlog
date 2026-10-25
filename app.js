@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '1.0.2';
+const APP_V = '1.0.3';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -221,10 +221,10 @@ function setR(id, i, r) {
 
 function check(id, i) {
   const D = S.draft, x = D.ex[id], s = x.sets[i], e = entryOf(D.day, id);
+  // Ein Tipp auf einen abgehakten Satz öffnet nur die Bearbeitung. Wieder öffnen geht dort mit „Nicht gemacht“.
   if (s.done) {
-    s.done = false; delete s.f; delete s.t;
-    if (D.last && D.last.id === id && D.last.i === i) D.last = null;
-    touch(); save(); renderMain();
+    V.edit = V.edit && V.edit.id === id && V.edit.i === i ? null : { id, i };
+    renderMain();
     return;
   }
   if (s.w == null) {
@@ -244,6 +244,14 @@ function check(id, i) {
   adjustAfter(e, x, i, incOf(id), false);
   D.rest = { end: Date.now() + e.rest * 1000, total: e.rest };
   touch(); save(); renderMain(); keepAwake();
+}
+function undone(id, i) {
+  const D = S.draft, s = D.ex[id].sets[i];
+  if (!s || !s.done) return;
+  s.done = false; delete s.f; delete s.t;
+  if (D.last && D.last.id === id && D.last.i === i) D.last = null;
+  V.edit = null;
+  touch(); save(); renderMain();
 }
 function rate(id, i, f) {
   const D = S.draft, x = D.ex[id], s = x.sets[i];
@@ -457,7 +465,7 @@ function rowHTML(D, id, i, nx) {
     <div class="si">${i + 1}</div>
     <button class="val${s.w == null ? ' empty' : ''}${ed ? ' on' : ''}" data-act="ed" ${a} id="vw-${id}-${i}" aria-label="Gewicht Satz ${i + 1} ändern">${wValHTML(s)}</button>
     <button class="val${ed ? ' on' : ''}" data-act="ed" ${a} id="vr-${id}-${i}" aria-label="Wiederholungen Satz ${i + 1} ändern">${rValHTML(s)}</button>
-    <button class="chk" data-act="chk" ${a} aria-label="Satz ${i + 1} ${s.done ? 'zurücksetzen' : 'abhaken'}">${ICON_OK}</button>
+    <button class="chk" data-act="chk" ${a} aria-label="Satz ${i + 1} ${s.done ? 'bearbeiten' : 'abhaken'}">${ICON_OK}</button>
     <p class="wn" id="wn-${id}-${i}">${esc(warnTxt(s))}</p>
     ${showFeel ? `<div class="feel" role="group" aria-label="Wie war Satz ${i + 1}?">${[1, 2, 3].map(f => `<button data-act="feel" data-f="${f}" ${a}${(s.f || 2) === f ? ' class="on"' : ''}>${FEEL[f]}</button>`).join('')}</div>` : ''}
     ${ed ? editHTML(id, i, s, x) : ''}
@@ -468,7 +476,7 @@ function editHTML(id, i, s, x) {
   return `<div class="edit"><div class="edit2">
     <div class="step"><label for="w-${id}-${i}">Gewicht kg · Schritt ${inc}</label><div class="stp"><button data-step="w-" ${a} aria-label="${inc} kg weniger">−</button><input id="w-${id}-${i}" data-inp="w" ${a} inputmode="decimal" enterkeyhint="done" autocomplete="off" value="${s.w == null ? '' : fw(s.w)}" placeholder="kg"><button data-step="w+" ${a} aria-label="${inc} kg mehr">+</button></div></div>
     <div class="step"><label for="r-${id}-${i}">Wiederholungen</label><div class="stp"><button data-step="r-" ${a} aria-label="eine Wiederholung weniger">−</button><input id="r-${id}-${i}" data-inp="r" ${a} inputmode="numeric" enterkeyhint="done" autocomplete="off" value="${s.r}"><button data-step="r+" ${a} aria-label="eine Wiederholung mehr">+</button></div></div>
-    </div><div class="eacts">${!s.done && x.sets.length > 1 ? `<button data-act="delset" ${a}>Satz löschen</button>` : '<span></span>'}<button class="ok" data-act="edclose">Fertig</button></div></div>`;
+    </div><div class="eacts">${s.done ? `<button data-act="undone" ${a}>Nicht gemacht</button>` : x.sets.length > 1 ? `<button data-act="delset" ${a}>Satz löschen</button>` : '<span></span>'}<button class="ok" data-act="edclose">Fertig</button></div></div>`;
 }
 
 // Nur Zahlen neu malen, ohne Knöpfe neu zu bauen. So gehen schnelle Plus/Minus-Tipps nicht verloren.
@@ -493,7 +501,7 @@ function paintEx(id) {
 function renderSummary(s) {
   const k = s.day, ids = Object.keys(s.ex);
   const sets = ids.reduce((a, id) => a + s.ex[id].length, 0);
-  const vol = ids.reduce((a, id) => a + s.ex[id].reduce((b, x) => b + x.w * x.r, 0), 0);
+  const vol = ids.reduce((a, id) => a + s.ex[id].reduce((b, x) => b + x.w * x.r, 0) * (eqOf(id) === 'scheibe' ? 2 : 1), 0); // Scheiben-Geräte: pro Seite eingetragen
   const min = s.start ? Math.max(1, Math.round((s.end - s.start) / 60000)) : null;
   const prs = [], nxt = [];
   for (const id of ids) {
@@ -606,7 +614,7 @@ function exSheet(id) {
     <p class="note">So viel ändern Plus/Minus und das Steigern.</p>
     <p class="sec">Gerät</p>
     <div class="pick">${Object.keys(EQ).map(k => `<button data-act="eq" data-id="${id}" data-v="${k}"${eq === k ? ' class="on"' : ''}>${EQ[k]}</button>`).join('')}</div>
-    <p class="note">Bei Scheiben und Langhantel zeigt die App, was pro Seite drauf muss. Trag immer das Gesamtgewicht ein.</p>`);
+    <p class="note">Bei Scheiben-Geräten trägst du das Gewicht pro Seite ein, die App zeigt die Scheiben dafür. Bei der Langhantel das Gesamtgewicht.</p>`);
   bindChart(ser);
 }
 
@@ -786,6 +794,7 @@ function act(a, b) {
     case 'edclose': V.edit = null; renderMain(); break;
     case 'chk': check(id, i); break;
     case 'feel': rate(id, i, +b.dataset.f); break;
+    case 'undone': undone(id, i); break;
     case 'addset': addSet(id); break;
     case 'delset': delSet(id, i); break;
     case 'skip': toggleSkip(id); if (V.sheet) exSheet(id); break;
