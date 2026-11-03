@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '1.0.5';
+const APP_V = '2.0.0';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -14,28 +14,33 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const WDN = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 const WDS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const SHORT = { ober: 'Ober', unter: 'Unter', push: 'Push', pull: 'Pull', beine: 'Beine' };
-const FEEL = { 1: 'Leicht', 2: 'Passt', 3: 'Am Limit' };
+const BLOCK_WEEKS = 6; // 5 Wochen Aufbau + 1 Entlastungswoche
 const ICON_X = '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const ICON_GO = '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>';
 const ICON_OK = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
 let S = null; // alles, was gespeichert wird
-const V = { sel: todayIso(), day0: todayIso(), pick: false, edit: null, fin: false, summary: null, sheet: null, paste: false, msg: '', msgOk: true, update: null, persist: false, storeErr: false };
+const V = { sel: todayIso(), day0: todayIso(), pick: false, edit: null, fin: false, summary: null, sheet: null, paste: false, msg: '', msgOk: true, update: null, persist: false, storeErr: false, swapTo: null };
 let wake = null, timerInt = null, tOver = null, hold = null;
 
 /* ---------- Speichern ----------
    Doppelt: IndexedDB (groß, dauerhaft) und localStorage (sofort). Beim Start gewinnt der neuere Stand. */
 
 function fresh() {
-  return { v: 1, created: Date.now(), saved: 0, plan: makePlan(), planV: PLAN_V, ov: {}, inc: {}, eq: {}, sessions: [], draft: null, backupAt: 0, theme: 'auto' };
+  return {
+    v: 1, created: Date.now(), saved: 0, plan: makePlan(), planV: PLAN_V, planCustom: false, ov: {}, inc: {}, eq: {},
+    sessions: [], draft: null, backupAt: 0, theme: 'auto', bw: [], stag: {}, block: null, blockLog: null, noEarly: '',
+  };
 }
 function migrate(s) {
   const f = fresh();
-  // Der Plan ist noch nicht in der App änderbar, also einfach den neuen Startplan übernehmen
-  if (s.planV !== PLAN_V) { s.plan = f.plan; s.planV = PLAN_V; }
+  // Neuer Startplan wird übernommen, solange Lucas den Plan nicht selbst geändert hat (Tauschen, Block-Anpassung)
+  if (s.planV !== PLAN_V && !s.planCustom) { s.plan = f.plan; s.planV = PLAN_V; s.block = null; }
   for (const k in f) if (s[k] === undefined) s[k] = f[k];
+  if (!s.block) s.block = { n: 1, start: mondayOf(todayIso()), early: '' };
   return s;
 }
+function mondayOf(date) { const d = dateOf(date); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return iso(d); }
 let idbP = null;
 function idb() {
   if (!idbP) idbP = new Promise((res, rej) => {
@@ -76,16 +81,38 @@ function flush() { if (saveT) save(); }
 
 /* ---------- Kleine Helfer ---------- */
 
-const incOf = id => S.inc[id] || 1.25;
-const exName = id => EX[id] ? EX[id][0] : id;
+// Gewichtsschritt: selbst gewählt, sonst fester Schritt des Geräts (Beinpresse 5 kg), sonst aus deinen Einträgen gelernt
+const autoInc = id => (EX[id] && EX[id].inc) || learnedStep(S.sessions, id) || 1.25;
+const incOf = id => S.inc[id] || autoInc(id);
+const exName = id => EX[id] ? EX[id].n : id;
 const dayName = k => S.plan[k] ? S.plan[k].n : 'Training';
 function dayFor(date) {
   if (date in S.ov) return S.ov[date] || null;
   return WEEK0[dateOf(date).getDay()] || null;
 }
 function entryOf(day, id) {
-  const p = S.plan[day];
-  return (p && p.x.find(e => e.id === id)) || findEntry(id) || { id, s: 3, lo: 8, hi: 12, rest: 90, h: '' };
+  const D = S.draft, p = S.plan[day];
+  if (D && D.day === day && D.ent && D.ent[id]) return D.ent[id]; // nur heute getauscht
+  return (p && p.x.find(e => e.id === id)) || findEntry(id) || { id, s: 3, lo: 8, hi: 12, role: 'iso', rest: 90, h: '' };
+}
+// Woche im Block und Entlastung
+function blockWeek(date) { return Math.floor((dateOf(date) - dateOf(S.block.start)) / (7 * DAY_MS)) + 1; }
+function isDeload(date) { return blockWeek(date) === BLOCK_WEEKS || (!!S.block.early && mondayOf(date) === S.block.early); }
+const pace = () => paceOf(S.sessions);
+function optsFor(id) {
+  const all = hist(id);
+  return { days: all.length ? Math.round((dateOf(todayIso()) - dateOf(all[0].date)) / DAY_MS) : 0, reset: needsReset(id) };
+}
+function planFor(e) { return nextPlan(e, histW(e.id), incOf(e.id), optsFor(e.id)); }
+// Stagnation Stufe 1: hängt seit 4 Einheiten und wurde noch nicht neu gestartet
+function needsReset(id) { return !S.stag[id] && stalled(histW(id), id); }
+// Stufe 2: nach dem Neustart 3 weitere Einheiten ohne neuen Bestwert → Tausch vorschlagen
+function suggestSwap(id) {
+  const st = S.stag[id];
+  if (!st || st.no) return false;
+  const h = histW(id);
+  if (h.length < st.n + 3) return false;
+  return Math.max(...eSeries(h, id).slice(-3).map(p => p.v)) <= st.best * 1.01;
 }
 function findEntry(id) {
   for (const k of DAY_KEYS) { const e = S.plan[k] && S.plan[k].x.find(x => x.id === id); if (e) return e; }
@@ -118,16 +145,22 @@ function goalTxt(s) {
 
 /* ---------- Training von heute ---------- */
 
-function buildEx(e) {
-  const h = histW(e.id), p = nextPlan(e, h, incOf(e.id));
+function buildEx(e, deload) {
+  let p = planFor(e), reps = p.reps, w = p.w;
+  if (deload) { // Entlastung: halbe Sätze, 10 % leichter, nicht bis ans Limit
+    reps = reps.slice(0, Math.max(1, Math.ceil(reps.length / 2)));
+    if (w) w = roundRel(w * 0.9, w, incOf(e.id));
+    p = { ...p, tag: 'deload' };
+  }
   return {
-    tag: p.tag, d: p.d || 0, first: !h.length,
-    sets: p.reps.map(r => ({ w: p.w, r, tw: p.w, tr: r, pr: r, E: p.w ? e1(p.w, r, 2) : undefined, done: false })),
+    tag: p.tag, d: p.d || 0, first: w == null,
+    sets: reps.map(r => ({ w, r, tw: w, tr: r, pw: w, pr: r, E: w ? e1(w, r) : undefined, done: false })),
   };
 }
 function buildDraft(k, date) {
-  const D = { date, day: k, start: null, order: [], skip: {}, ex: {}, last: null, cur: null, touched: false, rest: null };
-  for (const e of S.plan[k].x) { D.order.push(e.id); D.ex[e.id] = buildEx(e); }
+  const deload = isDeload(date);
+  const D = { date, day: k, start: null, order: [], skip: {}, ex: {}, ent: {}, last: null, cur: null, touched: false, rest: null, deload };
+  for (const e of S.plan[k].x) { D.order.push(e.id); D.ex[e.id] = buildEx(e, deload); }
   return D;
 }
 function touch() { if (S.draft) S.draft.touched = true; }
@@ -144,6 +177,8 @@ function sessionFromDraft(D, end) {
       if (s.t) { o.t = s.t; lastT = Math.max(lastT, s.t); }
       if (s.tw != null) o.tw = s.tw;
       if (s.tr != null) o.tr = s.tr;
+      if (s.pw !== undefined) o.pw = s.pw; // geplantes Ziel zu Beginn, daran misst die App den Fortschritt
+      if (s.pr !== undefined) o.pr = s.pr;
       l.push(o);
     }
     if (l.length) ex[id] = l;
@@ -152,7 +187,7 @@ function sessionFromDraft(D, end) {
   return {
     id: 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), v: 1,
     date: D.date, day: D.day, start: D.start, end: end || lastT || Date.now(),
-    ex, skip: D.order.filter(id => D.skip[id]), deload: false,
+    ex, skip: D.order.filter(id => D.skip[id]), deload: !!D.deload,
   };
 }
 // Ein Training von gestern, das nicht beendet wurde, wird mit den abgehakten Sätzen gespeichert
@@ -183,7 +218,7 @@ function latestDone(x) {
 }
 function reAdjust(id) {
   const D = S.draft, x = D.ex[id], i = latestDone(x);
-  if (i >= 0) adjustAfter(entryOf(D.day, id), x, i, incOf(id), true);
+  if (i >= 0) adjustAfter(entryOf(D.day, id), x, i, incOf(id));
 }
 // Stärke für Punkt 4, wenn ein Satz kein eigenes Ziel hat: letzter Satz heute, sonst Arbeitsstärke
 function liveE(id) {
@@ -205,7 +240,7 @@ function setW(id, i, w) {
     o.man = true;
     const E = o.E || liveE(id);
     if (E > 0 && w > 0) {
-      const r = repsFor(E, w);
+      const r = clamp(repsFor(E, w), Math.max(1, e.lo - 3), e.hi + 5); // nie absurde Ziele wie „2 Wdh.“
       o.r = o.tr = r;
       o.warn = r < e.lo ? 'heavy' : r > e.hi + 3 ? 'light' : null;
     }
@@ -240,7 +275,7 @@ function check(id, i) {
   D.cur = id;
   V.edit = null;
   V.fin = false;
-  adjustAfter(e, x, i, incOf(id), false);
+  adjustAfter(e, x, i, incOf(id));
   D.rest = { end: Date.now() + e.rest * 1000, total: e.rest };
   touch(); save(); renderMain(); keepAwake();
 }
@@ -252,17 +287,10 @@ function undone(id, i) {
   V.edit = null;
   touch(); save(); renderMain();
 }
-function rate(id, i, f) {
-  const D = S.draft, x = D.ex[id], s = x.sets[i];
-  if (!s || !s.done) return;
-  s.f = f;
-  if (latestDone(x) === i) adjustAfter(entryOf(D.day, id), x, i, incOf(id), true);
-  touch(); save(); renderMain();
-}
 function addSet(id) {
   const x = S.draft.ex[id], L = x.sets[x.sets.length - 1];
   const w = L.done ? L.w : (L.tw != null ? L.tw : L.w), r = L.done ? L.r : (L.tr != null ? L.tr : L.r);
-  x.sets.push({ w, r, tw: w, tr: r, pr: L.pr != null ? L.pr : r, E: w > 0 ? e1(w, r, 2) : undefined, done: false, add: true });
+  x.sets.push({ w, r, tw: w, tr: r, pw: null, pr: null, E: w > 0 ? e1(w, r) : undefined, done: false, add: true }); // Zusatzsatz zählt nicht als verfehlt
   touch(); save(); renderMain();
 }
 function delSet(id, i) {
@@ -297,10 +325,41 @@ function finish() {
   const D = S.draft;
   if (!D) return;
   const s = sessionFromDraft(D, Date.now());
-  if (s) S.sessions.push(s);
+  if (s) {
+    S.sessions.push(s);
+    for (const id in s.ex) noteStag(id, D.ex[id] && D.ex[id].tag);
+  }
   S.draft = null;
   V.fin = false; V.edit = null; V.summary = s ? s.id : null;
   releaseWake(); hideTimer(); save(); render(); scrollTo(0, 0);
+}
+// Stagnation merken: Neustart gemacht → Stufe 1. Neuer Bestwert → alles wieder normal.
+function noteStag(id, tag) {
+  const h = histW(id), ser = eSeries(h, id).map(p => p.v);
+  if (tag === 'reset') { S.stag[id] = { st: 1, n: h.length, best: Math.max(...ser.slice(0, -1), 0) }; return; }
+  const st = S.stag[id];
+  if (st && ser.length && ser[ser.length - 1] > st.best * 1.01) delete S.stag[id];
+}
+// Übung tauschen: nur heute oder dauerhaft im Plan. Die neue Übung hat ihren eigenen Verlauf.
+function swapEx(id, to, forever) {
+  const D = S.draft, day = D ? D.day : null, e = entryOf(day, id);
+  if (D) D.ent = D.ent || {};
+  const ne = { ...e, id: to, h: '' };
+  if (forever && S.plan[day]) {
+    const i = S.plan[day].x.findIndex(x => x.id === id);
+    if (i >= 0) { S.plan[day].x[i] = ne; S.planCustom = true; }
+  }
+  if (D && D.ex[id] && !D.ex[id].sets.some(s => s.done)) {
+    D.ent[to] = ne;
+    D.order[D.order.indexOf(id)] = to;
+    D.ex[to] = buildEx(ne, D.deload);
+    delete D.ex[id];
+    if (D.cur === id) D.cur = null;
+    touch();
+  }
+  delete S.stag[id];
+  V.swapTo = null;
+  save(); closeSheet(); renderMain();
 }
 // Gespeichertes Training von heute wieder öffnen, um etwas zu ändern oder weiterzumachen
 function reopen(sid) {
@@ -325,13 +384,91 @@ function reopen(sid) {
   save(); render();
 }
 
+/* ---------- Blöcke, Entlastung, Sätze pro Muskel ---------- */
+
+// Nach 6 Wochen (oder nach einer vorgezogenen Entlastung) startet der nächste Block mit angepassten Sätzen
+function rollBlock() {
+  const t = todayIso(), earlyDone = S.block.early && mondayOf(t) > S.block.early;
+  if (blockWeek(t) <= BLOCK_WEEKS && !earlyDone) return;
+  const items = adjustVolume();
+  S.blockLog = { n: S.block.n + 1, items, seen: false };
+  S.block = { n: S.block.n + 1, start: mondayOf(t), early: '' };
+  if (S.draft && !S.draft.touched) S.draft = null;
+  save();
+}
+function dayMinutes(k, extra) {
+  const x = S.plan[k].x;
+  return estMinutes(x.reduce((a, e) => a + e.s, 0) + (extra || 0), x.length, pace());
+}
+// Punkt 9: Muskel überall stärker geworden → +1 Satz (Schultern zuerst), schwächer geworden → −1 Satz
+function adjustVolume() {
+  const start = S.block.start, ms = muscleSets(S.plan), out = [];
+  const trend = id => {
+    const ser = eSeries(histW(id), id).filter(p => p.s.date >= start);
+    return ser.length >= 2 ? ser[ser.length - 1].v / ser[0].v : null;
+  };
+  for (const m of MUSCLE_PRIO) {
+    const [, lo, hi] = MUSCLES[m], exs = [];
+    for (const k of DAY_KEYS) for (const e of S.plan[k].x) if (EX[e.id] && EX[e.id].m === m) exs.push({ k, e });
+    const tr = [...new Set(exs.map(x => x.e.id))].map(trend).filter(v => v != null);
+    if (!tr.length) continue;
+    if (tr.every(v => v > 1.01) && ms[m] + 1 <= hi) {
+      const c = exs.filter(x => x.e.s < 5 && dayMinutes(x.k, 1) <= 90).sort((a, b) => a.e.s - b.e.s)[0];
+      if (c) { c.e.s++; ms[m]++; out.push(`+1 Satz ${exName(c.e.id)} (${dayName(c.k)})`); }
+    } else if (tr.some(v => v < 0.98) && ms[m] - 1 >= lo) {
+      const c = exs.filter(x => x.e.s > 2).sort((a, b) => b.e.s - a.e.s)[0];
+      if (c) { c.e.s--; ms[m]--; out.push(`−1 Satz ${exName(c.e.id)} (${dayName(c.k)})`); }
+    }
+  }
+  if (out.length) S.planCustom = true;
+  return out;
+}
+// Früher entlasten: in 2 Wochen hintereinander ist bei mindestens 40 % der Übungen die Stärke gefallen
+function earlyDeloadDue() {
+  const t = todayIso(), mon = mondayOf(t);
+  if (S.block.early || isDeload(t) || S.noEarly === mon || blockWeek(t) < 3) return false;
+  const fell = from => {
+    const to = iso(new Date(dateOf(from).getTime() + 7 * DAY_MS));
+    let n = 0, f = 0;
+    for (const s of S.sessions) {
+      if (s.deload || s.date < from || s.date >= to) continue;
+      for (const id in s.ex) {
+        const prev = histW(id).find(o => sessTime(o) < sessTime(s));
+        if (!prev) continue;
+        n++;
+        if (setsStrength(s.ex[id]) < setsStrength(prev.ex[id]) * 0.99) f++;
+      }
+    }
+    return n >= 4 ? f / n : 0;
+  };
+  const w1 = iso(new Date(dateOf(mon).getTime() - 7 * DAY_MS)), w2 = iso(new Date(dateOf(mon).getTime() - 14 * DAY_MS));
+  return fell(w1) >= 0.4 && fell(w2) >= 0.4;
+}
+
+/* ---------- Körpergewicht ---------- */
+
+function bwHint() {
+  const last = S.bw[S.bw.length - 1];
+  if (!last) return '';
+  const t = bwTrend(S.bw, todayIso()), prot = Math.round(last.kg * 1.8 / 5) * 5;
+  let txt = t == null ? 'Für einen Trend brauche ich noch ein paar Wochen.'
+    : t < 0.1 ? `Dein Gewicht steigt kaum (${fw(Math.round(t * 100) / 100)} kg/Woche). Für mehr Masse iss etwa 200 kcal mehr am Tag.`
+    : t > 0.35 ? `Du nimmst schnell zu (${fw(Math.round(t * 100) / 100)} kg/Woche), das ist viel Fett. Iss etwa 200 kcal weniger.`
+    : `Passt: +${fw(Math.round(t * 100) / 100)} kg pro Woche, das ist sauberer Aufbau.`;
+  return `${txt} Eiweiß: etwa ${prot} g am Tag.`;
+}
+const bwDue = () => !S.bw.length || dateOf(todayIso()) - dateOf(S.bw[S.bw.length - 1].d) >= 7 * DAY_MS;
+
 /* ---------- Anzeige ---------- */
 
 function render() { renderBanner(); renderWeek(); renderMain(); }
 
 function renderBanner() {
-  const out = [];
+  const out = [], busy = hasDone(S.draft);
   if (V.update) out.push('<div class="bn"><span>Neue Version ist da.</span><button data-act="update">Aktualisieren</button></div>');
+  if (S.blockLog && !S.blockLog.seen) out.push(`<div class="bn"><span><b>Block ${S.blockLog.n} startet.</b> ${S.blockLog.items.length ? esc(S.blockLog.items.join(' · ')) : 'Sätze bleiben gleich.'}</span><button data-act="blockok">OK</button></div>`);
+  if (!busy && earlyDeloadDue()) out.push('<div class="bn warn"><span>Bei vielen Übungen geht es gerade zurück. Diese Woche entlasten?</span><button data-act="early">Ja</button><button data-act="noearly">Nein</button></div>');
+  if (!busy && bwDue() && V.bwLater !== todayIso()) out.push(`<div class="bn"><span>Wiegen: Gewicht von heute früh?</span><input id="bwIn" class="bwin" inputmode="decimal" placeholder="kg" aria-label="Körpergewicht in kg"><button data-act="bwsave">OK</button><button class="ghost" data-act="bwlater" aria-label="Später">Später</button></div>`);
   if (V.storeErr) out.push('<div class="bn warn"><span>Speichern klappt gerade nicht. Speicher jetzt eine Sicherung.</span><button data-act="export">Sichern</button></div>');
   else if (backupDue() && !hasDone(S.draft)) {
     const d = S.backupAt ? Math.floor((Date.now() - S.backupAt) / DAY_MS) : null;
@@ -387,16 +524,16 @@ function renderRest() {
 
 function renderTraining(D) {
   const ids = D.order.filter(id => !D.skip[id]);
-  let total = 0, done = 0, sec = 0;
+  let total = 0, done = 0;
   for (const id of ids) {
     const ss = D.ex[id].sets;
     total += ss.length;
     done += ss.filter(s => s.done).length;
-    sec += ss.length * (45 + entryOf(D.day, id).rest);
   }
-  $('hero').innerHTML = `<div class="eyebrow">${WDN[dateOf(D.date).getDay()]} · heute</div><h1>${esc(dayName(D.day))}</h1>
-    <p>${esc((S.plan[D.day] && S.plan[D.day].f) || '')}</p>
-    <div class="meta"><span><strong>${ids.length}</strong> Übungen</span><span><strong>${total}</strong> Sätze</span><span>ca. <strong>${Math.round(sec / 300) * 5}</strong> Min</span><span><strong>${done}/${total}</strong> erledigt</span></div>
+  const min = Math.round(estMinutes(total, ids.length, pace()) / 5) * 5, wk = blockWeek(D.date);
+  $('hero').innerHTML = `<div class="eyebrow">${WDN[dateOf(D.date).getDay()]} · heute · Block ${S.block.n}, Woche ${Math.min(wk, BLOCK_WEEKS)}/${BLOCK_WEEKS}</div><h1>${esc(dayName(D.day))}</h1>
+    <p>${D.deload ? '<b>Entlastungswoche:</b> halbe Sätze, 10 % leichter. Nicht bis ans Limit.' : esc((S.plan[D.day] && S.plan[D.day].f) || '')}</p>
+    <div class="meta"><span><strong>${ids.length}</strong> Übungen</span><span><strong>${total}</strong> Sätze</span><span>ca. <strong>${min}</strong> Min</span><span><strong>${done}/${total}</strong> erledigt</span></div>
     <div class="bar"><div style="width:${total ? done / total * 100 : 0}%"></div></div>
     <button class="link" data-act="picktoggle">${V.pick ? 'Doch nicht tauschen' : 'Heute was anderes trainieren?'}</button>`;
   const nx = nextSet(D);
@@ -414,13 +551,12 @@ function exCard(D, id, ix, nx, isFirst) {
   const e = entryOf(D.day, id), x = D.ex[id], name = esc(exName(id));
   if (D.skip[id]) return `<article class="ex skipped"><button class="exn" data-act="exsheet" data-id="${id}">${name} · übersprungen</button><button class="add" data-act="skip" data-id="${id}">Zurückholen</button></article>`;
   const complete = x.sets.every(s => s.done);
-  const tag = x.tag === 'up' ? `<span class="tag up">+${fw(x.d)} kg</span>`
-    : x.tag === 'down' ? `<span class="tag down">−${fw(x.d)} kg, neu aufbauen</span>`
-    : x.tag === 'new' ? '<span class="tag new">Erstes Mal</span>' : '';
+  const hint = [D.deload ? '2–3 Wdh. im Tank' : e.role === 'iso' ? 'Bis zum Versagen' : '1–2 Wdh. im Tank', e.h].filter(Boolean).join(' · ');
+  const swap = !D.deload && suggestSwap(id) ? `<p class="hint warn">Hängt trotz Neustart. <button class="link" data-act="exsheet" data-id="${id}">Tauschen?</button></p>` : '';
   return `<article class="ex${complete ? ' complete' : ''}" id="ex-${id}">
     <div class="exh"><div class="num">${ix + 1}</div><button class="exn" data-act="exsheet" data-id="${id}">${name}${ICON_GO}</button>
-      <div class="exm"><span>${x.sets.length} × ${e.lo}–${e.hi}</span><span>Pause ${restTxt(e.rest)}</span>${tag}</div>
-      ${e.h ? `<p class="hint">${esc(e.h)}</p>` : ''}</div>
+      <div class="exm"><span>${x.sets.length} × ${e.lo}–${e.hi}</span><span>Pause ${restTxt(e.rest)}</span>${tagHTML(x)}</div>
+      <p class="hint">${esc(hint)}</p>${swap}</div>
     <div class="plan" id="pl-${id}">${planHTML(D, id)}</div>
     ${isFirst ? `<div class="warm" id="wu-${id}">${warmHTML(id, x)}</div>` : ''}
     <div class="sets">${x.sets.map((s, i) => rowHTML(D, id, i, nx)).join('')}</div>
@@ -428,11 +564,24 @@ function exCard(D, id, ix, nx, isFirst) {
   </article>`;
 }
 
+// Kurzes Etikett, warum das Ziel heute so ist
+function tagHTML(p) {
+  const t = p.tag, d = p.d;
+  return t === 'up' ? `<span class="tag up">+${fw(d)} kg</span>`
+    : t === 'more' ? `<span class="tag up">+${d} Wdh.</span>`
+    : t === 'down' ? `<span class="tag down">−${fw(d)} kg, neu aufbauen</span>`
+    : t === 'hold' ? '<span class="tag down">Ziel wiederholen</span>'
+    : t === 'again' ? '<span class="tag new">Wie letztes Mal geplant</span>'
+    : t === 'pause' ? `<span class="tag down">${d} Tage Pause, leichter</span>`
+    : t === 'reset' ? '<span class="tag down">Hängt: 10 % leichter, volle Spanne</span>'
+    : t === 'deload' ? '<span class="tag new">Entlastung</span>'
+    : t === 'new' ? '<span class="tag new">Erstes Mal</span>' : '';
+}
 function planHTML(D, id) {
   const x = D.ex[id], lh = hist(id)[0], tgt = fmtSets(x.sets, true);
   const last = lh ? `<span>Letztes Mal</span><b>${fmtSets(lh.ex[id], false)} <span>· ${ago(lh.date)}</span></b>` : '';
   if (tgt) return `${last}<span class="now">Ziel heute</span><b class="now">${tgt}</b>`;
-  return `${last}<b class="full">Erstes Mal: Satz 1 mit ${x.sets[0].r} Wdh. Nimm ein Gewicht, bei dem noch 2 Wdh. gehen würden. Danach rechnet die App den Rest.</b>`;
+  return `${last}<b class="full">Erstes Mal: ${x.sets[0].r} Wdh. pro Satz. Nimm ein Gewicht, mit dem du die gerade so schaffst. Ab dann gibt die App die Gewichte vor.</b>`;
 }
 function warmHTML(id, x) {
   const s = x.sets[0], w0 = s.tw != null ? s.tw : s.w, inc = incOf(id);
@@ -451,15 +600,14 @@ function warnTxt(s) {
 function rowHTML(D, id, i, nx) {
   const x = D.ex[id], s = x.sets[i], a = `data-id="${id}" data-i="${i}"`;
   const isNext = nx && nx.id === id && nx.i === i, ed = V.edit && V.edit.id === id && V.edit.i === i;
-  const showFeel = s.done && ((D.last && D.last.id === id && D.last.i === i) || ed);
+  const lp = isNext && !D.deload && entryOf(D.day, id).lp && i === x.sets.length - 1;
   return `<div class="row${s.done ? ' done' : ''}${isNext ? ' next' : ''}">
-    ${isNext ? `<div class="goal"><span>Satz ${i + 1} · Ziel</span><b id="gl-${id}-${i}">${goalTxt(s)}</b></div>` : ''}
+    ${isNext ? `<div class="goal"><span>Satz ${i + 1} · Ziel</span><b id="gl-${id}-${i}">${goalTxt(s)}</b>${lp ? '<small>Danach 3–6 halbe Wdh. in der Dehnung</small>' : ''}</div>` : ''}
     <div class="si">${i + 1}</div>
     <button class="val${s.w == null ? ' empty' : ''}${ed ? ' on' : ''}" data-act="ed" ${a} id="vw-${id}-${i}" aria-label="Gewicht Satz ${i + 1} ändern">${wValHTML(s)}</button>
     <button class="val${ed ? ' on' : ''}" data-act="ed" ${a} id="vr-${id}-${i}" aria-label="Wiederholungen Satz ${i + 1} ändern">${rValHTML(s)}</button>
     <button class="chk" data-act="chk" ${a} aria-label="Satz ${i + 1} ${s.done ? 'bearbeiten' : 'abhaken'}">${ICON_OK}</button>
     <p class="wn" id="wn-${id}-${i}">${esc(warnTxt(s))}</p>
-    ${showFeel ? `<div class="feel" role="group" aria-label="Wie war Satz ${i + 1}?">${[1, 2, 3].map(f => `<button data-act="feel" data-f="${f}" ${a}${(s.f || 2) === f ? ' class="on"' : ''}>${FEEL[f]}</button>`).join('')}</div>` : ''}
     ${ed ? editHTML(id, i, s, x) : ''}
   </div>`;
 }
@@ -493,7 +641,10 @@ function renderSummary(s) {
   const k = s.day, ids = Object.keys(s.ex);
   const sets = ids.reduce((a, id) => a + s.ex[id].length, 0);
   const vol = ids.reduce((a, id) => a + s.ex[id].reduce((b, x) => b + x.w * x.r, 0), 0);
-  const min = s.start ? Math.max(1, Math.round((s.end - s.start) / 60000)) : null;
+  // Dauer aus den Satzzeiten, damit spät getipptes „Training beenden“ nichts verfälscht
+  const ts = ids.flatMap(id => s.ex[id].map(x => x.t).filter(Boolean)).sort((a, b) => a - b);
+  const pc = pace(), gaps = ts.slice(1).map((t, i) => (t - ts[i]) / 60000).filter(g => g >= 0.4 && g <= 15);
+  const min = ts.length > 1 ? Math.max(1, Math.round(gaps.reduce((a, g) => a + g, 0) + pc.set * (ts.length - gaps.length))) : null;
   const prs = [], nxt = [];
   for (const id of ids) {
     const best = setsStrength(s.ex[id]);
@@ -505,15 +656,16 @@ function renderSummary(s) {
     }
     const h = histW(id);
     if (!h.length || h[0].id !== s.id) continue; // „Nächstes Mal“ nur für die neueste Einheit
-    const p = nextPlan(entryOf(k, id), h, incOf(id));
-    const ch = p.tag === 'up' ? ` (+${fw(p.d)} kg)` : p.tag === 'down' ? ` (−${fw(p.d)} kg)` : '';
-    nxt.push(`<li><span>${esc(exName(id))}</span><span class="${p.tag === 'up' ? 'up' : p.tag === 'down' ? 'down' : ''}">${fw(p.w)} kg × ${p.reps.join(' · ')}${ch}</span></li>`);
+    if (s.deload) continue;
+    const p = planFor(entryOf(k, id));
+    const ch = p.tag === 'up' ? ` (+${fw(p.d)} kg)` : p.tag === 'down' ? ` (−${fw(p.d)} kg)` : p.tag === 'hold' ? ' (nochmal)' : p.tag === 'more' ? ` (+${p.d} Wdh.)` : '';
+    nxt.push(`<li><span>${esc(exName(id))}</span><span class="${p.tag === 'up' || p.tag === 'more' ? 'up' : p.tag === 'down' || p.tag === 'hold' ? 'down' : ''}">${p.w == null ? '–' : fw(p.w)} kg × ${p.reps.join(' · ')}${ch}</span></li>`);
   }
   $('hero').innerHTML = `<div class="eyebrow">${dateLong(s.date)}</div><h1>${esc(dayName(k))} erledigt</h1>`;
   $('list').innerHTML = `<div class="card">
       <div class="stats"><div class="stat"><b>${sets}</b><span>Sätze</span></div><div class="stat"><b>${Math.round(vol).toLocaleString('de-DE')}</b><span>kg Volumen</span></div><div class="stat"><b>${min == null ? '–' : min}</b><span>Minuten</span></div></div>
       ${prs.length ? `<p class="sec">Neue Bestwerte</p><ul class="lst">${prs.join('')}</ul>` : ''}
-      ${nxt.length ? `<p class="sec">Nächstes Mal</p><ul class="lst">${nxt.join('')}</ul><p class="note">In Klammern: mehr oder weniger Gewicht. Sonst gleiches Gewicht, mehr Wiederholungen.</p>` : ''}
+      ${nxt.length ? `<p class="sec">Nächstes Mal</p><ul class="lst">${nxt.join('')}</ul><p class="note">Alles geschafft: mehr Wiederholungen, oben angekommen: mehr Gewicht. Verfehlt: gleiches Ziel noch mal.</p>` : ''}
       ${s.skip && s.skip.length ? `<p class="note">Übersprungen: ${s.skip.map(id => esc(exName(id))).join(', ')}</p>` : ''}
     </div>
     ${s.date === todayIso() && !hasDone(S.draft) ? `<button class="btn ghost" data-act="reopen" data-sid="${esc(s.id)}">Nochmal öffnen</button>` : ''}`;
@@ -530,7 +682,7 @@ function renderOther(date) {
   }
   $('hero').innerHTML = `<div class="eyebrow">${dateLong(date)}</div><h1>${k ? esc(dayName(k)) : 'Ruhetag'}</h1>${k ? `<p>${esc(S.plan[k].f)}</p>` : ''}`;
   const prev = !k ? '' : `<div class="card"><h2>Vorschau</h2><div class="prev">${S.plan[k].x.map(e => {
-    const p = nextPlan(e, histW(e.id), incOf(e.id));
+    const p = planFor(e);
     return `<div><span>${esc(exName(e.id))}</span><span>${p.w == null ? `Erstes Mal · ${p.reps[0]} Wdh.` : `${fw(p.w)} kg × ${p.reps.join(' · ')}`}</span></div>`;
   }).join('')}</div><p class="note">Stand heute. Was du bis dahin trainierst, fließt noch ein.</p></div>`;
   $('list').innerHTML = prev + `<div class="card"><h2>An diesem Tag tauschen</h2><p>Gilt nur für diesen einen Tag.</p>${pickChips(date, k)}</div>`;
@@ -598,15 +750,29 @@ function exSheet(id) {
     ${E ? `<div class="big"><b>${fw(Math.round(E * 10) / 10)} kg</b><span>${delta}</span></div>${chartHTML(ser)}
       <p class="note">So viel könntest du etwa einmal schaffen, gemittelt aus deinen letzten 3 Einheiten. Steigt die Linie, wirst du stärker.</p>`
       : '<p class="note">Noch keine Werte. Nach dem ersten Training siehst du hier deinen Verlauf.</p>'}
-    ${h.length ? `<p class="sec">Letzte Einheiten</p><ul class="hl">${h.slice(0, 10).map(s => `<li><span>${fmtDW(s.date)}</span><span class="sx">${s.ex[id].map(x => `<i class="f${x.f || 2}">${fw(x.w)}×${x.r}${x.f === 1 ? ' L' : x.f === 3 ? ' !' : ''}</i>`).join('')}</span></li>`).join('')}</ul>
-      <p class="note">L = leicht, ! = am Limit.</p>` : ''}
+    ${h.length ? `<p class="sec">Letzte Einheiten</p><ul class="hl">${h.slice(0, 10).map(s => `<li><span>${fmtDW(s.date)}${s.deload ? ' E' : ''}</span><span class="sx">${s.ex[id].map(x => `<i${tgtR(x) != null && x.r < tgtR(x) ? ' class="f3"' : ''}>${fw(x.w)}×${x.r}</i>`).join('')}</span></li>`).join('')}</ul>
+      <p class="note">Gelb = Ziel nicht ganz geschafft. E = Entlastungswoche.</p>` : ''}
+    ${inD && !D.ex[id].sets.some(s => s.done) ? swapHTML(id, e) : ''}
     <p class="sec">Gewichtsschritt</p>
-    <div class="pick">${STEPS.map(v => `<button data-act="inc" data-id="${id}" data-v="${v}"${inc === v ? ' class="on"' : ''}>${fw(v)} kg</button>`).join('')}</div>
-    <p class="note">So viel ändern Plus/Minus und das Steigern.</p>
+    <div class="pick"><button data-act="inc" data-id="${id}" data-v="0"${!S.inc[id] ? ' class="on"' : ''}>Automatisch (${fw(autoInc(id))} kg)</button>${STEPS.map(v => `<button data-act="inc" data-id="${id}" data-v="${v}"${S.inc[id] === v ? ' class="on"' : ''}>${fw(v)} kg</button>`).join('')}</div>
+    <p class="note">So viel ändern Plus/Minus und das Steigern. „Automatisch“ lernt den Schritt aus deinen Einträgen.</p>
     `);
   bindChart(ser);
 }
 
+// Tauschen: Alternativen aus derselben Gruppe, danach „nur heute“ oder „dauerhaft“
+function swapHTML(id, e) {
+  const g = EX[id] && EX[id].g, usedN = new Set(S.draft.order.map(exName)); // nichts, was heute schon dran ist
+  const alts = Object.keys(EX).filter(k => EX[k].g === g && !usedN.has(EX[k].n) && k !== 'sh_kabel2');
+  const seen = new Set(), list = alts.filter(k => !seen.has(EX[k].n) && seen.add(EX[k].n));
+  if (!list.length) return '';
+  const to = V.swapTo && V.swapTo.id === id ? V.swapTo.to : null;
+  return `<p class="sec">Tauschen</p>
+    ${suggestSwap(id) ? `<p class="note bad">Die Übung hängt trotz Neustart. Ein Tausch bringt oft neuen Reiz.</p><button class="link" data-act="swapno" data-id="${id}">Nein, behalten</button>` : ''}
+    <div class="pick">${list.map(k => `<button data-act="swappick" data-id="${id}" data-to="${k}"${to === k ? ' class="on"' : ''}>${esc(EX[k].n)}</button>`).join('')}</div>
+    ${to ? `<div class="two"><button class="btn ghost" data-act="swapgo" data-id="${id}" data-to="${to}" data-f="0">Nur heute</button><button class="btn primary" data-act="swapgo" data-id="${id}" data-to="${to}" data-f="1">Dauerhaft</button></div>
+      <p class="note">Gleiche Sätze und Spanne (${e.s} × ${e.lo}–${e.hi}). Die neue Übung startet mit eigenem Verlauf.</p>` : '<p class="note">Gerät besetzt oder Übung hängt? Wähl eine Alternative.</p>'}`;
+}
 // Linie der Arbeitsstärke. Antippen zeigt Datum und Wert.
 const CH = { W: 340, H: 170, L: 42, R: 14, T: 16, B: 26 };
 function chartPts(ser) {
@@ -662,6 +828,9 @@ function setSheet() {
     <div class="two"><button class="btn ghost" data-act="import">Sicherung laden</button><button class="btn ghost" data-act="paste">Text einfügen</button></div>
     ${V.paste ? '<textarea id="pasteTxt" placeholder="Gesicherten Text hier einfügen, auch aus der alten Version" aria-label="Sicherung als Text"></textarea><button class="btn primary" data-act="pastego">Übernehmen</button>' : ''}
     <p class="note${V.msg ? (V.msgOk ? ' ok' : ' bad') : ''}" id="setMsg">${esc(V.msg)}</p>
+    <p class="sec">Körpergewicht</p>
+    <div class="bwrow"><input id="bwIn2" class="bwin" inputmode="decimal" placeholder="kg" aria-label="Körpergewicht in kg"><button class="btn ghost" data-act="bwsave2">Eintragen</button></div>
+    ${S.bw.length ? `<p class="note">${S.bw.slice(-6).reverse().map(p => `${fmtD(p.d)} ${fw(p.kg)} kg`).join(' · ')}</p><p class="note">${esc(bwHint())}</p>` : '<p class="note">Einmal pro Woche morgens wiegen. Die App sagt dir dann, ob du im Aufbau bist.</p>'}
     <p class="sec">Darstellung</p>
     <div class="pick">${[['auto', 'Wie iPhone'], ['light', 'Hell'], ['dark', 'Dunkel']].map(([k, n]) => `<button data-act="theme" data-v="${k}"${S.theme === k ? ' class="on"' : ''}>${n}</button>`).join('')}</div>
     <p class="sec">Info</p>
@@ -671,7 +840,7 @@ function setSheet() {
 /* ---------- Sicherung: Export und Import ---------- */
 
 function exportData() {
-  const data = { app: 'eisenlog', v: 1, exported: Date.now(), sessions: S.sessions, plan: S.plan, inc: S.inc, eq: S.eq, ov: S.ov, theme: S.theme };
+  const data = { app: 'eisenlog', v: 1, exported: Date.now(), sessions: S.sessions, plan: S.plan, planV: S.planV, planCustom: S.planCustom, inc: S.inc, ov: S.ov, theme: S.theme, bw: S.bw, stag: S.stag, block: S.block };
   const txt = JSON.stringify(data), name = `eisenlog-sicherung-${todayIso()}.json`;
   const done = () => {
     S.backupAt = Date.now(); save();
@@ -711,6 +880,7 @@ function cleanSession(o) {
       const z = { w: r2(w), r: Math.round(r) };
       if ([1, 2, 3].includes(x.f)) z.f = x.f;
       for (const k of ['t', 'tw', 'tr']) if (x[k] != null && isFinite(Number(x[k]))) z[k] = Number(x[k]);
+      for (const k of ['pw', 'pr']) if (x[k] === null || (x[k] != null && isFinite(Number(x[k])))) z[k] = x[k] === null ? null : Number(x[k]);
       l.push(z);
     }
     if (l.length) ex[id] = l;
@@ -733,7 +903,7 @@ function cleanMap(o, ok) {
 }
 function validPlan(p) {
   return !!p && DAY_KEYS.every(k => p[k] && typeof p[k].n === 'string' && Array.isArray(p[k].x) && p[k].x.length
-    && p[k].x.every(e => e && ID_RE.test(e.id) && [e.s, e.lo, e.hi, e.rest].every(Number.isInteger) && e.lo <= e.hi && e.s > 0 && e.s < 12));
+    && p[k].x.every(e => e && ID_RE.test(e.id) && [e.s, e.lo, e.hi, e.rest].every(Number.isInteger) && e.lo <= e.hi && e.s > 0 && e.s < 12 && (e.role in REST)));
 }
 function importText(txt) {
   let j;
@@ -749,12 +919,18 @@ function importText(txt) {
   }
   S.inc = Object.assign(cleanMap(j.inc, v => typeof v === 'number' && v > 0 && v <= 20), S.inc);
   if (j.app === 'eisenlog') {
-    S.eq = Object.assign(cleanMap(j.eq, v => v in EQ), S.eq);
     const ov = {};
     if (j.ov && typeof j.ov === 'object') for (const d of Object.keys(j.ov)) if (DATE_RE.test(d) && (j.ov[d] === '' || DAY_KEYS.includes(j.ov[d]))) ov[d] = j.ov[d];
     S.ov = Object.assign(ov, S.ov);
-    if (!was && validPlan(j.plan)) S.plan = j.plan;
-    if (!was && ['auto', 'light', 'dark'].includes(j.theme)) S.theme = j.theme;
+    const have = new Set(S.bw.map(p => p.d));
+    if (Array.isArray(j.bw)) for (const p of j.bw) if (p && DATE_RE.test(p.d) && p.kg > 30 && p.kg < 250 && !have.has(p.d)) S.bw.push({ d: p.d, kg: r2(+p.kg) });
+    S.bw.sort((a, b) => a.d < b.d ? -1 : 1);
+    if (!was) { // leeres Handy: alles übernehmen, auch Plan und Block
+      if (j.planV === PLAN_V && validPlan(j.plan)) { S.plan = j.plan; S.planCustom = !!j.planCustom; }
+      if (j.block && DATE_RE.test(j.block.start) && j.block.n > 0) S.block = { n: +j.block.n, start: j.block.start, early: DATE_RE.test(j.block.early) ? j.block.early : '' };
+      if (j.stag && typeof j.stag === 'object') S.stag = cleanMap(j.stag, v => v && typeof v === 'object' && v.st > 0);
+      if (['auto', 'light', 'dark'].includes(j.theme)) S.theme = j.theme;
+    }
   }
   if (S.draft && !S.draft.touched) S.draft = null;
   save(); applyTheme(); render();
@@ -782,18 +958,33 @@ function act(a, b) {
     case 'ed': V.edit = V.edit && V.edit.id === id && V.edit.i === i ? null : { id, i }; renderMain(); break;
     case 'edclose': V.edit = null; renderMain(); break;
     case 'chk': check(id, i); break;
-    case 'feel': rate(id, i, +b.dataset.f); break;
     case 'undone': undone(id, i); break;
+    case 'swappick': V.swapTo = { id, to: b.dataset.to }; exSheet(id); break;
+    case 'swapgo': swapEx(id, b.dataset.to, b.dataset.f === '1'); break;
+    case 'swapno': if (S.stag[id]) S.stag[id].no = true; save(); exSheet(id); renderMain(); break;
+    case 'bwsave': case 'bwsave2': {
+      const el = $(a === 'bwsave' ? 'bwIn' : 'bwIn2'), kg = parseFloat(String(el && el.value).replace(',', '.'));
+      if (!(kg > 30 && kg < 250)) { if (el) el.focus(); break; }
+      const t = todayIso();
+      S.bw = S.bw.filter(p => p.d !== t).concat({ d: t, kg: r2(kg) });
+      save(); renderBanner();
+      if (a === 'bwsave2') setSheet();
+      break;
+    }
+    case 'bwlater': V.bwLater = todayIso(); renderBanner(); break;
+    case 'blockok': S.blockLog.seen = true; save(); renderBanner(); break;
+    case 'early': S.block.early = mondayOf(todayIso()); if (S.draft && !hasDone(S.draft)) S.draft = null; save(); render(); break;
+    case 'noearly': S.noEarly = mondayOf(todayIso()); save(); renderBanner(); break;
     case 'addset': addSet(id); break;
     case 'delset': delSet(id, i); break;
     case 'skip': toggleSkip(id); if (V.sheet) exSheet(id); break;
     case 'mv': move(id, +b.dataset.d); exSheet(id); break;
     case 'exsheet': exSheet(id); break;
     case 'inc': {
-      S.inc[id] = +b.dataset.v;
+      if (+b.dataset.v) S.inc[id] = +b.dataset.v; else delete S.inc[id];
       const D = S.draft;
       // Ziel dieser Übung mit dem neuen Schritt neu rechnen, solange noch kein Satz abgehakt ist
-      if (D && D.ex[id] && !D.ex[id].sets.some(s => s.done) && S.plan[D.day] && S.plan[D.day].x.some(e => e.id === id)) D.ex[id] = buildEx(entryOf(D.day, id));
+      if (D && D.ex[id] && !D.ex[id].sets.some(s => s.done)) D.ex[id] = buildEx(entryOf(D.day, id), D.deload);
       save(); exSheet(id); renderMain(); break;
     }
     case 'fin': V.fin = true; renderMain(); break;
@@ -883,7 +1074,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') { flush(); return; }
   if (todayIso() !== V.day0) { // neuer Tag, während die App offen war
     V.day0 = V.sel = todayIso(); V.summary = null; V.edit = null;
-    settleOldDraft(); save(); render();
+    settleOldDraft(); rollBlock(); save(); render();
   } else if (S.draft && S.draft.rest) tick();
   if (hasDone(S.draft)) keepAwake();
 });
@@ -909,6 +1100,7 @@ function registerSW() {
 (async function boot() {
   S = await loadState();
   settleOldDraft();
+  rollBlock();
   if (S.draft && !S.draft.touched) S.draft = null; // unberührtes Training frisch berechnen
   applyTheme();
   save();
