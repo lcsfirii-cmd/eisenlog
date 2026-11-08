@@ -59,7 +59,6 @@ const kc = n => n.toLocaleString('de-DE');
 const ym = () => todayIso().slice(0, 7);
 const toMin = s => +s.slice(0, 2) * 60 + +s.slice(3);
 const pkcal = () => F.pk || FOOD.pizza.kcal;
-const pzTxt = n => `${n === 0.5 ? '½' : n} ${FOOD.pizza.n}`;
 const pzNeed = () => Math.max(0, Math.ceil(FOOD.pizza.vorrat - F.pz));
 const fdRec = d => F.d[d] || (F.d[d] = { c: [], e: [], fr: false, ae: null, pp: 0, pb: 0, k: 0, g: 0 });
 const eatenOf = (p, r) => p.m.filter(x => x.pz || r.c.includes(x.w)).reduce((a, x) => a + x.k, 0);
@@ -71,7 +70,7 @@ function fdPlan(d) {
   for (const [z, w, k, o] of base) {
     if (w !== FOOD.abendessen) { m.push({ z, w: (o && o[wd]) || w, k }); continue; }
     m.push({ z, w, k: r.ae != null ? r.ae : k, est: r.ae != null, k0: k });
-    if (r.pp) m.push({ z, w: pzTxt(r.pp), k: Math.round(pkcal() * r.pp), pz: true });
+    if (r.pp) m.push({ z, w: `1 ${FOOD.pizza.n}`, k: pkcal(), pz: true });
   }
   return { n: p.n, m, g: base.reduce((a, x) => a + x[2], 0) };
 }
@@ -95,7 +94,7 @@ function foodImport(j) {
   const num = (x, max) => x != null && isFinite(+x) && +x >= 0 && +x <= max ? +x : null;
   if (!Object.keys(F.d).length) { F.pz = num(j.pz, 50) || 0; F.pk = num(j.pk, 3000) || 0; }
   for (const [d, r] of Object.entries(j.d || {})) if (DATE_RE.test(d) && r && typeof r === 'object' && !F.d[d])
-    F.d[d] = { c: arr(r.c), e: arr(r.e), fr: !!r.fr, ae: num(r.ae, 5000), pp: [0.5, 1].includes(r.pp) ? r.pp : 0, pb: num(r.pb, 20) || 0, k: +r.k || 0, g: +r.g || 0 };
+    F.d[d] = { c: arr(r.c), e: arr(r.e), fr: !!r.fr, ae: num(r.ae, 5000), pp: r.pp ? 1 : 0, pb: num(r.pb, 20) || 0, k: +r.k || 0, g: +r.g || 0 };
   for (const [m, l] of Object.entries(j.o || {})) if (/^\d{4}-\d{2}$/.test(m) && !F.o[m]) F.o[m] = arr(l);
   foodSave(); foodRender();
 }
@@ -119,11 +118,11 @@ function foodRender() {
     break;
   }
   const dn = p.m.find(x => x.w === FOOD.abendessen), gap = dn && r.ae != null ? dn.k0 - r.ae : 0;
-  const tip = r.ae == null ? '' : gap <= 0 ? 'Passt, kein Backup nötig.' : `Fehlen ca. ${kc(gap)} kcal → ${gap <= pkcal() * 0.75 ? '½ Pizza' : '1 Pizza'} passt.`;
+  const tip = r.ae == null ? '' : gap <= 0 ? 'Passt, kein Backup nötig.' : gap < 300 ? `Fehlen nur ca. ${kc(gap)} kcal, Pizza nicht nötig.` : `Fehlen ca. ${kc(gap)} kcal → Pizza dazu.`;
   const din = !dn ? '' : `<details class="card fd" data-k="din"${(op.din ?? (r.ae != null || !!r.pp)) ? ' open' : ''}><summary><b>Abendessen schätzen + Backup</b><span>${r.ae != null ? `Geschätzt ${kc(r.ae)} kcal` : `Normal ${kc(dn.k0)} kcal`} · Vorrat ${fw(F.pz)} Pizza</span></summary>
       <div class="bwrow"><input id="aeIn" class="bwin" inputmode="numeric" placeholder="kcal" value="${r.ae ?? ''}" aria-label="Abendessen geschätzt in kcal"><button class="btn ghost" data-fact="ae">Eintragen</button></div>
       ${tip ? `<p class="note ok">${tip}</p>` : ''}
-      <p class="sec">Pizza dazu</p><div class="pick">${[[0, 'Keine'], [0.5, '½ Pizza'], [1, '1 Pizza']].map(([v, n]) => `<button data-fact="pp" data-v="${v}"${(r.pp || 0) === v ? ' class="on"' : ''}>${n}</button>`).join('')}</div>
+      <p class="sec">Pizza dazu</p><div class="pick">${[[0, 'Keine'], [1, '1 Pizza']].map(([v, n]) => `<button data-fact="pp" data-v="${v}"${(r.pp || 0) === v ? ' class="on"' : ''}>${n}</button>`).join('')}</div>
       <div class="pzr"><span>Vorrat im Gefrierfach: <b>${fw(F.pz)}</b></span><button data-fact="pz" data-v="-1" aria-label="Eine Pizza weniger">−</button><button data-fact="pz" data-v="1" aria-label="Eine Pizza mehr">+</button></div>
       <div class="pzr"><span>1 Pizza laut Packung</span><input id="pkIn" class="bwin" inputmode="numeric" value="${pkcal()}" aria-label="kcal pro Pizza"><span>kcal</span></div></details>`;
   const hist = Array.from({ length: 7 }, (_, i) => {
