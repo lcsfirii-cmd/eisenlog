@@ -43,12 +43,12 @@ const FOOD = {
   tage: ['we', 'frei', 'frueh', 'frei', 'frueh', 'frei', 'we'],
   freitagMitTraining: 'fr',
   einkauf: {
-    1: ['Mo–Di', ['2 L H-Milch', '3 L Bananennektar', '1 Packung Müsli', '3 Bananen', 'Bäcker: 2 Tiger-Brötchen']],
-    3: ['Mi–Fr', ['3 L H-Milch', '2 L Bananennektar', '1 Packung Müsli', '5 Bananen (eher grün)', 'Bäcker: 2 Tiger-Brötchen']],
-    6: ['Sa–So', ['2 L H-Milch', '2 L Bananennektar', '1 Packung Müsli', '4 Bananen', 'Bäcker: 2 Tiger-Brötchen']],
+    1: ['Mo–Di', ['2 L H-Milch', '3 L Bananennektar', '1 Packung Müsli', '3 Bananen', '2 Flaschen Wasser (1,5 L)', 'Haferflocken für die Woche (ca. 420 g)', 'Nüsse für die Woche (ca. 350 g, direkt in 50-g-Portionen aufteilen)', 'Bäcker: 2 Tiger-Brötchen']],
+    3: ['Mi–Fr', ['3 L H-Milch', '2 L Bananennektar', '1 Packung Müsli', '5 Bananen (eher grün)', '3 Flaschen Wasser (1,5 L)', 'Bäcker: 2 Tiger-Brötchen']],
+    6: ['Sa–So', ['2 L H-Milch', '2 L Bananennektar', '1 Packung Müsli', '4 Bananen', '2 Flaschen Wasser (1,5 L)', 'Bäcker: 2 Tiger-Brötchen']],
   },
   reserve: 'Mehr als eine Packung Reserve im Schrank? Beim nächsten Einkauf weglassen.',
-  online: ['Haferflocken ca. 1,8 kg', 'Nüsse ca. 1,5 kg (direkt in 50-g-Portionen aufteilen)', 'Whey ca. 1,8 kg', 'Isoclear ca. 30 Portionen'],
+  online: [],
 };
 
 const FL = 'eisenlog-food';
