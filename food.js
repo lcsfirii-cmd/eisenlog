@@ -43,9 +43,14 @@ const FOOD = {
   tage: ['we', 'frei', 'frueh', 'frei', 'frueh', 'frei', 'we'],
   freitagMitTraining: 'fr',
   einkauf: {
-    1: ['Mo–Di', ['2 L H-Milch', '3 L Bananennektar', '1 Packung Müsli', '3 Bananen', '2 Flaschen Wasser (1,5 L)', 'Haferflocken für die Woche (ca. 420 g)', 'Nüsse für die Woche (ca. 350 g, direkt in 50-g-Portionen aufteilen)', 'Bäcker: 2 Tiger-Brötchen']],
+    1: ['Mo–Di', ['2 L H-Milch', '3 L Bananennektar', '1 Packung Müsli', '3 Bananen', '2 Flaschen Wasser (1,5 L)', 'Haferflocken für die Woche (ca. 420 g)', 'Nüsse für die Woche (ca. 350 g, direkt in 50-g-Portionen aufteilen)', 'TK-Pizza als Backup: auffüllen auf 2 im Gefrierfach', 'Bäcker: 2 Tiger-Brötchen']],
     3: ['Mi–Fr', ['3 L H-Milch', '2 L Bananennektar', '1 Packung Müsli', '5 Bananen (eher grün)', '3 Flaschen Wasser (1,5 L)', 'Bäcker: 2 Tiger-Brötchen']],
     6: ['Sa–So', ['2 L H-Milch', '2 L Bananennektar', '1 Packung Müsli', '4 Bananen', '2 Flaschen Wasser (1,5 L)', 'Bäcker: 2 Tiger-Brötchen']],
+  },
+  abendessen: 'Abendessen',
+  backup: {
+    wenig: [['Abendessen (kleine Portion)', 500], ['½ TK-Pizza (Backup)', 475]],
+    aus: [['1 TK-Pizza (Backup)', 950]],
   },
   reserve: 'Mehr als eine Packung Reserve im Schrank? Beim nächsten Einkauf weglassen.',
   online: [],
@@ -56,15 +61,16 @@ let F = { saved: 0, d: {}, o: {} };
 const kc = n => n.toLocaleString('de-DE');
 const ym = () => todayIso().slice(0, 7);
 const toMin = s => +s.slice(0, 2) * 60 + +s.slice(3);
-const fdRec = d => F.d[d] || (F.d[d] = { c: [], e: [], fr: false, k: 0, g: 0 });
+const fdRec = d => F.d[d] || (F.d[d] = { c: [], e: [], fr: false, ab: '', k: 0, g: 0 });
 const eatenOf = (p, r) => p.m.filter(x => r.c.includes(x.w)).reduce((a, x) => a + x.k, 0);
 const tgl = (l, x) => { const i = l.indexOf(x); if (i < 0) l.push(x); else l.splice(i, 1); };
 
 function fdPlan(d) {
   const wd = dateOf(d).getDay(), r = F.d[d];
   const p = FOOD.plaene[wd === 5 && r && r.fr ? FOOD.freitagMitTraining : FOOD.tage[wd]];
-  const m = p.m.concat(FOOD.immer).map(([z, w, k, o]) => ({ z, w: (o && o[wd]) || w, k }));
-  return { n: p.n, m, g: m.reduce((a, x) => a + x.k, 0) };
+  const base = p.m.concat(FOOD.immer), b = r && FOOD.backup[r.ab];
+  const m = base.flatMap(([z, w, k, o]) => b && w === FOOD.abendessen ? b.map(([w2, k2]) => ({ z, w: w2, k: k2 })) : [{ z, w: (o && o[wd]) || w, k }]);
+  return { n: p.n, m, g: base.reduce((a, x) => a + x[2], 0) };
 }
 
 async function foodLoad() {
@@ -83,14 +89,14 @@ function foodSave() {
 function foodImport(j) {
   if (!j || typeof j !== 'object') return;
   const arr = a => Array.isArray(a) ? a.filter(x => typeof x === 'string' && x.length < 200).slice(0, 60) : [];
-  for (const [d, r] of Object.entries(j.d || {})) if (DATE_RE.test(d) && r && typeof r === 'object' && !F.d[d]) F.d[d] = { c: arr(r.c), e: arr(r.e), fr: !!r.fr, k: +r.k || 0, g: +r.g || 0 };
+  for (const [d, r] of Object.entries(j.d || {})) if (DATE_RE.test(d) && r && typeof r === 'object' && !F.d[d]) F.d[d] = { c: arr(r.c), e: arr(r.e), fr: !!r.fr, ab: r.ab in FOOD.backup ? r.ab : '', k: +r.k || 0, g: +r.g || 0 };
   for (const [m, l] of Object.entries(j.o || {})) if (/^\d{4}-\d{2}$/.test(m) && !F.o[m]) F.o[m] = arr(l);
   foodSave(); foodRender();
 }
 
 function foodRender() {
   const el = $('food'), d = todayIso(), now = new Date(), wd = now.getDay(), nm = now.getHours() * 60 + now.getMinutes();
-  const r = F.d[d] || { c: [], e: [], fr: false }, p = fdPlan(d), eaten = eatenOf(p, r), ol = F.o[ym()] || [];
+  const r = F.d[d] || { c: [], e: [], fr: false, ab: '' }, p = fdPlan(d), eaten = eatenOf(p, r), ol = F.o[ym()] || [];
   const det = el.querySelector('details'), open = det && det.open;
   const nx = p.m.find(x => { const t = x.z.match(/\d\d:\d\d/g); return t && !r.c.includes(x.w) && toMin(t[t.length - 1]) + 60 >= nm; });
   const item = (a, v, on, cls, inner) => `<button class="mi${cls}${on ? ' on' : ''}" data-fact="${a}" data-v="${esc(v)}" aria-pressed="${on}">${inner}<i>${ICON_OK}</i></button>`;
@@ -113,7 +119,8 @@ function foodRender() {
       <div class="meta"><span><strong>${kc(eaten)}</strong> / ${kc(p.g)} kcal</span></div>
       <div class="bar${eaten >= p.g ? ' full' : ''}"><div style="width:${Math.min(100, eaten / p.g * 100)}%"></div></div></section>`
     + (wd === 5 ? `<div class="pick">${[['0', 'Ohne Training'], ['1', 'Mit Training']].map(([v, n]) => `<button data-fact="fr" data-v="${v}"${(r.fr ? '1' : '0') === v ? ' class="on"' : ''}>${n}</button>`).join('')}</div>` : '')
-    + `<div class="card"><h2>Tagesplan</h2><div class="ml">${p.m.map(x => item('meal', x.w, r.c.includes(x.w), x === nx ? ' nx' : '', `<time>${x.z ? esc(x.z) : 'über den Tag'}</time><b>${esc(x.w)}<span>${kc(x.k)} kcal</span></b>`)).join('')}</div></div>`
+    + `<div class="card"><h2>Tagesplan</h2><div class="ml">${p.m.map(x => item('meal', x.w, r.c.includes(x.w), x === nx ? ' nx' : '', `<time>${x.z ? esc(x.z) : 'über den Tag'}</time><b>${esc(x.w)}<span>${kc(x.k)} kcal</span></b>`)).join('')}</div>
+      <p class="note">Abendessen zu wenig oder fällt aus?</p><div class="pick">${[['', 'Normal'], ['wenig', 'Zu wenig'], ['aus', 'Fällt aus']].map(([v, n]) => `<button data-fact="ab" data-v="${v}"${(r.ab || '') === v ? ' class="on"' : ''}>${n}</button>`).join('')}</div></div>`
     + shop + `<div class="card"><h2>Letzte 7 Tage</h2><div class="hist">${hist}</div></div>`;
 }
 
@@ -132,6 +139,7 @@ document.addEventListener('click', ev => {
   if (a === 'meal') tgl(r.c, v);
   else if (a === 'shop') tgl(r.e, v);
   else if (a === 'fr') r.fr = v === '1';
+  else if (a === 'ab') r.ab = v;
   else if (a === 'order') tgl(F.o[ym()] || (F.o[ym()] = []), v);
   const p = fdPlan(d);
   r.k = eatenOf(p, r); r.g = p.g;
