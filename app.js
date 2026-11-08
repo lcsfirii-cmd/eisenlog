@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '2.0.0';
+const APP_V = '2.1.0';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -840,7 +840,7 @@ function setSheet() {
 /* ---------- Sicherung: Export und Import ---------- */
 
 function exportData() {
-  const data = { app: 'eisenlog', v: 1, exported: Date.now(), sessions: S.sessions, plan: S.plan, planV: S.planV, planCustom: S.planCustom, inc: S.inc, ov: S.ov, theme: S.theme, bw: S.bw, stag: S.stag, block: S.block };
+  const data = { app: 'eisenlog', v: 1, exported: Date.now(), sessions: S.sessions, plan: S.plan, planV: S.planV, planCustom: S.planCustom, inc: S.inc, ov: S.ov, theme: S.theme, bw: S.bw, stag: S.stag, block: S.block, food: F };
   const txt = JSON.stringify(data), name = `eisenlog-sicherung-${todayIso()}.json`;
   const done = () => {
     S.backupAt = Date.now(); save();
@@ -932,6 +932,7 @@ function importText(txt) {
       if (['auto', 'light', 'dark'].includes(j.theme)) S.theme = j.theme;
     }
   }
+  if (j.food) foodImport(j.food);
   if (S.draft && !S.draft.touched) S.draft = null;
   save(); applyTheme(); render();
   return [true, `${add} Trainings übernommen${dup ? `, ${dup} waren schon da` : ''}${bad ? `, ${bad} unlesbar` : ''}.`];
