@@ -237,3 +237,7 @@ body[data-tab="food"] #week,body[data-tab="food"] #hero,body[data-tab="food"] #l
 .hd b{font-size:12px;font-variant-numeric:tabular-nums}
 .hd small{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .hd.t small{color:var(--accent);font-weight:700}
+.pzr{display:flex;align-items:center;gap:8px;font-size:15px}
+.pzr span:first-child{flex:1}
+.pzr button{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:24px}
+.fd[open]{gap:12px}
