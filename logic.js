@@ -3,9 +3,9 @@
    Hier steht nur Rechnung, keine Oberfläche. Alle Gewichte in kg.
    Die App braucht keine Bewertungen: Sie liest nur, ob die Ziele geschafft wurden. */
 
-const DAY_KEYS = ['ober', 'unter', 'push', 'pull', 'beine'];
+const DAY_KEYS = ['obA', 'beinA', 'arme', 'beinB', 'obB'];
 // Wochentag (0 = Sonntag) → Einheit. Mo und Mi frei.
-const WEEK0 = { 2: 'ober', 4: 'unter', 5: 'push', 6: 'pull', 0: 'beine' };
+const WEEK0 = { 2: 'obA', 4: 'beinA', 5: 'arme', 6: 'beinB', 0: 'obB' };
 const STEPS = [0.625, 1.25, 2, 2.5, 5, 10];
 
 // Muskeln: Name, harte Sätze pro Woche [von, bis]. Hauptmuskel zählt 1 Satz, Nebenmuskel 0,5.
@@ -26,24 +26,29 @@ const EX = {
   sh_kabel2: { n: 'Kabel-Seitheben, 2. Runde', g: 'seitl', m: 'side' },
   rev_bf: { n: 'Reverse Butterfly', g: 'hinten', m: 'rear' },
   rev_kabel: { n: 'Reverse Flys am Kabel', g: 'hinten', m: 'rear' },
-  rev_kh: { n: 'Vorgebeugtes KH-Seitheben', g: 'hinten', m: 'rear' },
+  rev_kh: { n: 'Vorgebeugte KH-Reverse-Flys', g: 'hinten', m: 'rear' },
   hs_incl: { n: 'Iso-Lateral Incline (Hammer Strength)', g: 'brust_dr', m: 'chest', m2: ['tri'] },
   hs_bench: { n: 'Iso-Lateral Bench (Hammer Strength)', g: 'brust_dr', m: 'chest', m2: ['tri'] },
+  hs_bench2: { n: 'Iso-Lateral Bench (Hammer Strength)', g: 'brust_dr', m: 'chest', m2: ['tri'] },
+  mp_incl: { n: 'Schrägbankdrücken Multipresse', g: 'brust_dr', m: 'chest', m2: ['tri'] },
+  mp_incl2: { n: 'Schrägbankdrücken Multipresse', g: 'brust_dr', m: 'chest', m2: ['tri'] },
   kh_schraeg: { n: 'KH-Schrägbankdrücken', g: 'brust_dr', m: 'chest', m2: ['tri'] },
   kabel_fly: { n: 'Kabel-Flys', g: 'brust_iso', m: 'chest' },
   butterfly: { n: 'Butterfly-Maschine', g: 'brust_iso', m: 'chest' },
   sd_masch: { n: 'Schulterdrücken (Hammer Strength)', g: 'schulterdr', m: 'front', m2: ['tri'] },
   sd_kh: { n: 'Schulterdrücken Kurzhanteln', g: 'schulterdr', m: 'front', m2: ['tri'] },
+  mp_sd: { n: 'Schulterdrücken Multipresse', g: 'schulterdr', m: 'front', m2: ['tri', 'side'] },
   lat_einarm: { n: 'Latzug einarmig am Kabel', g: 'lat', m: 'back', m2: ['bi'] },
   lat_breit: { n: 'Latzug breit', g: 'lat', m: 'back', m2: ['bi'] },
   lat_eng: { n: 'Latzug eng (V-Griff)', g: 'lat', m: 'back', m2: ['bi'] },
   pullover: { n: 'Pullover am Kabel', g: 'lat', m: 'back' },
-  tbar: { n: 'T-Bar-Rudern brustgestützt', g: 'rudern', m: 'back', m2: ['bi', 'rear'] },
+  tbar: { n: 'T-Bar-Rudern eng', g: 'rudern', m: 'back', m2: ['bi', 'rear'] },
   row_kabel: { n: 'Kabelrudern eng', g: 'rudern', m: 'back', m2: ['bi', 'rear'] },
+  row_breit: { n: 'Kabelrudern breit', g: 'rudern', m: 'back', m2: ['rear', 'bi'] },
   rstr: { n: 'Rückenstrecker-Maschine', g: 'unt_ruecken', m: 'low' },
   pend_do: { n: 'Pendulum / V-Squat', g: 'quads_dr', m: 'quads' },
   pend_so: { n: 'Pendulum / V-Squat', g: 'quads_dr', m: 'quads' },
-  presse: { n: 'Beinpresse', g: 'quads_dr', m: 'quads', inc: 5 },
+  presse: { n: 'Beinpresse, Füße tief', g: 'quads_dr', m: 'quads', inc: 5 },
   presse_so: { n: 'Beinpresse, Füße hoch', g: 'quads_dr', m: 'quads', m2: ['hams'], inc: 5 },
   strecker: { n: 'Beinstrecker', g: 'quads_iso', m: 'quads' },
   bb_sitz: { n: 'Beinbeuger sitzend', g: 'hams', m: 'hams' },
@@ -60,58 +65,58 @@ const EX = {
   tri_oh: { n: 'Trizeps über Kopf am Kabel', g: 'trizeps', m: 'tri' },
   tri_seil: { n: 'Trizeps-Pushdown mit Seil', g: 'trizeps', m: 'tri' },
   tri_stange: { n: 'Trizeps-Pushdown mit Stange', g: 'trizeps', m: 'tri' },
+  tri_einarm: { n: 'Trizeps einarmig mit Schlaufe', g: 'trizeps', m: 'tri' },
+  tri_sz: { n: 'Trizeps-Drücken SZ-Stange am Kabel', g: 'trizeps', m: 'tri' },
 };
 
 // Bei jeder Änderung am Startplan hochzählen, dann übernimmt die App den neuen Plan beim Start
-const PLAN_V = 4;
+const PLAN_V = 5;
 // Rolle: main = schwere Hauptübung (1–2 im Tank), comp = Grundübung (1–2 im Tank), iso = bis zum Versagen
 const REST = { main: 180, comp: 120, iso: 90 };
 const KNEE = 'Nur so tief, wie das Knie es mag';
 // Block 1 ab November 2026: [id, Sätze, Wdh. von, bis, Rolle, Lengthened Partials im letzten Satz, Hinweis]
 const PLAN_RAW = {
-  ober: ['Oberkörper', 'Schultern, Brust, Rücken, Arme', [
-    ['sh_kabel', 3, 12, 20, 'iso', 1, ''],
-    ['hs_incl', 3, 6, 10, 'main', 0, 'Gewicht pro Seite'],
-    ['lat_einarm', 3, 10, 15, 'comp', 0, 'Ellbogen Richtung Hüfte'],
-    ['row_kabel', 3, 8, 12, 'comp', 0, 'Zughilfen'],
-    ['kabel_fly', 3, 10, 15, 'iso', 1, ''],
-    ['rev_kabel', 2, 12, 20, 'iso', 0, ''],
-    ['curl_schraeg', 2, 10, 15, 'iso', 1, ''],
-    ['tri_oh', 2, 10, 15, 'iso', 1, '']]],
-  unter: ['Unterkörper', 'Quads, Beinbeuger, Waden, unterer Rücken', [
-    ['pend_do', 3, 6, 10, 'main', 0, KNEE],
+  obA: ['Oberkörper A', 'Schrägbank-Fokus: Brust, Rücken, Seitheben, Arme', [
+    ['sh_kabel', 3, 10, 15, 'iso', 1, ''],
+    ['mp_incl', 3, 5, 8, 'main', 0, 'Gewicht pro Seite, ohne Stange'],
+    ['tbar', 3, 5, 8, 'main', 0, 'Enger Griff'],
+    ['hs_bench2', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite'],
+    ['lat_breit', 3, 6, 10, 'comp', 0, ''],
+    ['kabel_fly', 2, 10, 15, 'iso', 1, ''],
+    ['curl_schraeg', 2, 8, 12, 'iso', 1, 'Gewicht pro Hantel'],
+    ['tri_einarm', 2, 10, 15, 'iso', 0, '']]],
+  beinA: ['Beine A', 'Quads, Beinbeuger, Waden, unterer Rücken', [
+    ['pend_do', 3, 5, 8, 'main', 0, KNEE],
     ['bb_sitz', 3, 10, 15, 'iso', 1, ''],
-    ['presse', 3, 10, 15, 'comp', 0, 'Aus der Ferse, Füße breit'],
-    ['strecker', 3, 12, 15, 'iso', 1, ''],
-    ['waden_steh', 3, 10, 15, 'iso', 1, 'Unten 2 s in der Dehnung halten'],
-    ['rstr', 3, 10, 15, 'iso', 0, ''],
-    ['rev_bf', 3, 12, 20, 'iso', 0, '']]],
-  push: ['Push', 'Brust, Schultern, Trizeps', [
-    ['hs_bench', 3, 6, 10, 'main', 0, 'Gewicht pro Seite'],
-    ['sm_masch', 4, 12, 20, 'iso', 0, ''],
-    ['kh_schraeg', 3, 8, 12, 'comp', 0, 'Gewicht pro Hantel'],
-    ['sd_masch', 2, 8, 12, 'comp', 0, 'Gewicht pro Seite'],
-    ['butterfly', 3, 10, 15, 'iso', 0, ''],
-    ['y_raise', 2, 12, 20, 'iso', 0, ''],
-    ['tri_oh', 2, 10, 15, 'iso', 1, ''],
-    ['tri_seil', 2, 10, 15, 'iso', 0, '']]],
-  pull: ['Pull', 'Rücken, hintere Schulter, Bizeps', [
-    ['tbar', 3, 6, 10, 'main', 0, ''],
-    ['lat_breit', 3, 8, 12, 'comp', 0, ''],
-    ['rev_bf', 4, 12, 20, 'iso', 0, ''],
-    ['sh_kabel', 3, 12, 20, 'iso', 1, ''],
-    ['lat_eng', 2, 10, 12, 'comp', 0, ''],
-    ['pullover', 2, 12, 15, 'iso', 0, ''],
-    ['scott', 2, 8, 12, 'iso', 1, ''],
-    ['sz_reverse', 2, 10, 15, 'iso', 0, '']]],
-  beine: ['Beine', 'Beinbeuger, Po, Quads, Adduktoren, Waden', [
-    ['rdl', 3, 8, 12, 'main', 0, 'Gewicht pro Hantel, Zughilfen'],
+    ['presse', 3, 8, 12, 'comp', 0, 'Füße tief und eng'],
+    ['strecker', 3, 10, 15, 'iso', 1, ''],
+    ['waden_steh', 3, 10, 15, 'iso', 1, 'Beine gestreckt, unten 2 s halten'],
+    ['rstr', 2, 10, 15, 'iso', 0, '']]],
+  arme: ['Schultern + Arme', 'Seitliche und hintere Schulter, Bizeps, Trizeps', [
+    ['sm_masch', 4, 10, 15, 'iso', 1, ''],
+    ['mp_sd', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite, ohne Stange'],
+    ['sh_kabel', 3, 10, 15, 'iso', 1, ''],
+    ['rev_kabel', 3, 10, 15, 'iso', 0, ''],
+    ['rev_kh', 2, 10, 15, 'iso', 0, 'Gewicht pro Hantel'],
+    ['scott', 3, 8, 12, 'iso', 1, ''],
+    ['tri_oh', 3, 10, 15, 'iso', 1, ''],
+    ['sz_reverse', 2, 10, 15, 'iso', 0, 'Obergriff'],
+    ['tri_sz', 2, 10, 15, 'iso', 0, '']]],
+  beinB: ['Beine B', 'Beinbeuger, Quads, Waden, Adduktoren', [
+    ['rdl', 3, 6, 10, 'main', 0, 'Gewicht pro Hantel, Zughilfen'],
     ['bb_sitz', 4, 10, 15, 'iso', 1, ''],
-    ['presse_so', 3, 10, 15, 'comp', 0, ''],
-    ['pend_so', 3, 10, 12, 'comp', 0, KNEE],
-    ['adduktoren', 2, 12, 15, 'iso', 0, ''],
-    ['waden', 3, 12, 20, 'iso', 1, 'Unten 2 s in der Dehnung halten'],
-    ['sm_masch', 3, 12, 20, 'iso', 0, '']]],
+    ['pend_so', 3, 8, 12, 'comp', 0, KNEE],
+    ['strecker', 2, 10, 15, 'iso', 1, ''],
+    ['waden', 3, 10, 15, 'iso', 1, 'Beine angewinkelt, unten 2 s halten'],
+    ['adduktoren', 2, 10, 15, 'iso', 0, '']]],
+  obB: ['Oberkörper B', 'Flach-Fokus: Brust, Rücken, Seitheben, hintere Schulter', [
+    ['sm_masch', 3, 10, 15, 'iso', 1, ''],
+    ['hs_bench', 3, 5, 8, 'main', 0, 'Gewicht pro Seite'],
+    ['row_breit', 4, 6, 10, 'comp', 0, 'Breiter Griff, Zughilfen'],
+    ['mp_incl2', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite, ohne Stange'],
+    ['lat_einarm', 4, 8, 12, 'comp', 0, 'Ellbogen Richtung Hüfte'],
+    ['kabel_fly', 2, 10, 15, 'iso', 1, ''],
+    ['rev_kabel', 2, 10, 15, 'iso', 0, '']]],
 };
 
 function makePlan() {
@@ -224,25 +229,17 @@ function nextPlan(e, h, inc, o = {}) {
   const planW = workWeight(last.map(x => ({ w: tgtW(x) != null ? tgtW(x) : x.w })));
   const planR = i => cl(tgtR(at(last, i)) != null ? tgtR(at(last, i)) : at(got, i));
   if (st === 'bad') return { w: planW, reps: Array.from({ length: n }, (_, i) => planR(i)), tag: 'again' };
+  if (last.length >= Math.min(n, 2) && got.every(r => r >= e.hi)) return { w: r2(w + inc), reps: fill(e.lo), tag: 'up', d: inc };
   if (st === 'miss') {
     // Zweimal verfehlt und dabei nicht besser geworden → leichter. Wer trotzdem zulegt, bekommt das Ziel noch mal.
     const prev = h.slice(1).find(s => sessStatus(s.ex[e.id]) !== 'bad');
     const sum = l => l.filter(x => Math.abs(x.w - w) < 0.01).reduce((a, x) => a + x.r, 0);
     if (prev && sessStatus(prev.ex[e.id]) === 'miss' && Math.abs(workWeight(prev.ex[e.id]) - w) < 0.01 && sum(last) <= sum(prev.ex[e.id]) && w - inc > 0)
       return { w: r2(w - inc), reps: fill(Math.min(e.hi, e.lo + 2)), tag: 'down', d: inc };
-    return { w: planW, reps: Array.from({ length: n }, (_, i) => planR(i)), tag: 'hold' };
+    return { w: planW, reps: Array.from({ length: n }, (_, i) => cl(Math.min(planR(i), at(got, i) + 1))), tag: 'hold' };
   }
-  // Geschafft: Serie zählen (gleiches Gewicht, schlechte Tage überspringen)
-  let streak = 0;
-  for (const s of h) {
-    const sx = s.ex[e.id], ss = sessStatus(sx);
-    if (ss === 'bad') continue;
-    if ((ss !== 'hit' && ss !== 'first') || Math.abs(workWeight(sx) - w) > 0.01) break;
-    streak++;
-  }
-  if (last.length >= Math.min(n, 2) && got.every(r => r >= e.hi)) return { w: r2(w + inc), reps: fill(e.lo), tag: 'up', d: inc };
-  const add = streak >= 2 ? 2 : 1;
-  return { w, reps: Array.from({ length: n }, (_, i) => cl(at(got, i) + add)), tag: 'more', d: add };
+  // Geschafft: +1 Wdh. pro Satz
+  return { w, reps: Array.from({ length: n }, (_, i) => cl(at(got, i) + 1)), tag: 'more', d: 1 };
 }
 
 /* ---------- Während des Trainings ---------- */
