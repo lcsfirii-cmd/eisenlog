@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '3.4.0';
+const APP_V = '3.4.1';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);

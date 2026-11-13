@@ -70,7 +70,7 @@ const FOOD = {
 };
 
 const FL = 'eisenlog-food';
-let F = { saved: 0, d: {}, st: {}, pk: 0 }, fSel = null;
+let F = { saved: 0, d: {}, st: {}, pk: 0 }, fSel = null, fLast = null;
 const kc = n => n.toLocaleString('de-DE');
 const fx = n => String(Math.round(n * 100) / 100).replace('.', ',');
 const toMin = s => +s.slice(0, 2) * 60 + +s.slice(3);
@@ -145,7 +145,8 @@ function foodRender() {
     return `<div class="bi">${item('buy', `${id}:${packs * pk}`, !!bt[id], ' s', `<b>${packs}× ${esc(n)}${pl ? ' ' + pl : ''}</b>`)}<button data-fact="bq" data-v="${id}:${Math.max(0, packs - 1)}"${dis} aria-label="${esc(n)} weniger">−</button><button data-fact="bq" data-v="${id}:${packs + 1}"${dis} aria-label="${esc(n)} mehr">+</button></div>`;
   }).join('');
   const shop = d !== t ? '' : `<div class="card"><h2>Einkaufszettel</h2><p>Was knapp wird, aufgefüllt auf etwa eine Woche. Mit − / + anpassen.</p>
-      ${buy ? `<div class="ml">${buy}</div><p class="note">Abhaken legt die Menge in den Vorrat.</p>` : '<p class="note ok">Alles da, nichts kaufen.</p>'}</div>`;
+      ${buy ? `<div class="ml">${buy}</div><p class="note">Abhaken legt die Menge in den Vorrat. Nochmal antippen nimmt es zurück.</p>` : '<p class="note ok">Alles da, nichts kaufen.</p>'}
+      ${fLast && bt[fLast] ? `<button class="btn ghost" data-fact="undo">Rückgängig: ${Math.round(bt[fLast] / FOOD.vorrat[fLast].p)}× ${esc(FOOD.vorrat[fLast].n)}</button>` : ''}</div>`;
   const low = Object.keys(FOOD.vorrat).filter(isLow).length;
   const vor = d !== t ? '' : `<details class="card fd" data-k="vor"${op.vor ? ' open' : ''}><summary><b>Vorrat</b><span>${low ? `${low} ${low === 1 ? 'Produkt wird' : 'Produkte werden'} knapp` : 'Alles reicht'} · Abhaken im Tagesplan zieht automatisch ab</span></summary>
       ${Object.entries(FOOD.vorrat).map(([id, { n, u, fest }]) => { const c = cover(id); return `<div class="vr"><span><b>${esc(n)}</b><small>${u}${fest ? ` · Soll ${fest}` : ` · reicht ${c >= 7 ? '7+ Tage' : c === 1 ? '1 Tag' : c + ' Tage'}`}</small></span><button data-fact="st" data-v="${id}:-1" aria-label="${esc(n)} weniger">−</button><input data-st="${id}" class="bwin" inputmode="decimal" value="${fx(stk(id))}" aria-label="${esc(n)} Vorrat in ${u}"><button data-fact="st" data-v="${id}:1" aria-label="${esc(n)} mehr">+</button></div>`; }).join('')}
@@ -184,7 +185,10 @@ function foodDo(a, v) {
     r.ae = isFinite(n) && n >= 0 && n < 5000 ? n : null;
     if (r.ae != null && !r.c.includes(FOOD.abendessen)) r.c.push(FOOD.abendessen);
   } else if (a === 'pp') { addSt('pizza', -(+v - (r.pp || 0))); r.pp = +v; }
-  else if (a === 'buy') { const [id, n] = v.split(':'); if (rt.b[id]) { addSt(id, -rt.b[id]); delete rt.b[id]; } else { addSt(id, +n); rt.b[id] = +n; } }
+  else if (a === 'buy' || a === 'undo') {
+    const [id, n] = a === 'undo' ? [fLast] : v.split(':');
+    if (rt.b[id]) { addSt(id, -rt.b[id]); delete rt.b[id]; fLast = null; } else { addSt(id, +n); rt.b[id] = +n; fLast = id; }
+  }
   else if (a === 'st') { const [id, s] = v.split(':'); addSt(id, s * FOOD.vorrat[id].p); }
   else if (a === 'bq') { const [id, n] = v.split(':'); (rt.q || (rt.q = {}))[id] = +n; }
   else if (a === 'pk') { const n = parseInt($('pkIn').value, 10); F.pk = n > 0 && n < 3000 ? n : 0; }
