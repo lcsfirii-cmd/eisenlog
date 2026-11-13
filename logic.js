@@ -13,9 +13,9 @@ const STEPS = [0.625, 1.25, 2, 2.5, 5, 10];
 const MUSCLES = {
   side: ['Seitliche Schulter', 14, 18], rear: ['Hintere Schulter', 12, 20], chest: ['Brust', 14, 22],
   back: ['Rücken', 14, 22], quads: ['Quads', 10, 16], hams: ['Beinbeuger', 10, 16], bi: ['Bizeps', 8, 14],
-  tri: ['Trizeps', 8, 14], calves: ['Waden', 6, 12], low: ['Unterer Rücken', 3, 8], add: ['Adduktoren', 2, 6],
+  tri: ['Trizeps', 8, 14], calves: ['Waden', 6, 12], low: ['Unterer Rücken', 3, 8], add: ['Adduktoren', 2, 6], abs: ['Bauch', 6, 10],
 };
-const MUSCLE_PRIO = ['side', 'rear', 'chest', 'back', 'quads', 'hams', 'bi', 'tri', 'calves', 'low', 'add'];
+const MUSCLE_PRIO = ['side', 'rear', 'chest', 'back', 'quads', 'hams', 'bi', 'tri', 'calves', 'low', 'add', 'abs'];
 
 // Übungskatalog: n = Name, g = Gruppe zum Tauschen, m = Hauptmuskel, m2 = Nebenmuskeln, inc = Standard-Schritt
 const EX = {
@@ -64,6 +64,8 @@ const EX = {
   curl_kabel: { n: 'Kabel-Curls', g: 'bizeps', m: 'bi' },
   hammer: { n: 'Hammercurls', g: 'bizeps', m: 'bi', inc: 2.5 },
   sz_reverse: { n: 'SZ-Curls im Obergriff', g: 'bizeps', m: 'bi' },
+  crunch: { n: 'Crunch-Maschine', g: 'bauch', m: 'abs' },
+  beinheben: { n: 'Beinheben', g: 'bauch', m: 'abs', inc: 2.5, bw: true },
   tri_oh: { n: 'Trizeps über Kopf am Kabel', g: 'trizeps', m: 'tri' },
   tri_seil: { n: 'Trizeps-Pushdown mit Seil', g: 'trizeps', m: 'tri' },
   tri_stange: { n: 'Trizeps-Pushdown mit Stange', g: 'trizeps', m: 'tri' },
@@ -72,7 +74,7 @@ const EX = {
 };
 
 // Bei jeder Änderung am Startplan hochzählen, dann übernimmt die App den neuen Plan beim Start
-const PLAN_V = 8;
+const PLAN_V = 9;
 // Rolle: main = schwere Hauptübung (1–2 im Tank), comp = Grundübung (1–2 im Tank), iso = bis zum Versagen
 const REST = { main: 180, comp: 120, iso: 90 };
 const KNEE = 'Nur so tief, wie das Knie es mag';
@@ -93,7 +95,8 @@ const PLAN_RAW = {
     ['presse_tief', 3, 8, 12, 'comp', 0, 'Füße tief und eng'],
     ['strecker', 3, 10, 15, 'iso', 1, ''],
     ['waden_steh', 3, 10, 15, 'iso', 1, 'Beine gestreckt, unten 2 s halten'],
-    ['rstr', 2, 10, 15, 'iso', 0, '']]],
+    ['rstr', 2, 10, 15, 'iso', 0, ''],
+    ['crunch', 3, 10, 15, 'iso', 0, 'Letzter Satz: Dropsatz erlaubt, nur den ersten Teil eintragen']]],
   arme: ['Schultern + Arme', 'Seitliche und hintere Schulter, Bizeps, Trizeps', [
     ['sm_masch', 4, 10, 15, 'iso', 1, ''],
     ['mp_sd', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite, ohne Stange'],
@@ -110,7 +113,8 @@ const PLAN_RAW = {
     ['bb_sitz', 4, 10, 15, 'iso', 1, ''],
     ['strecker', 2, 10, 15, 'iso', 1, ''],
     ['waden', 3, 10, 15, 'iso', 1, 'Beine angewinkelt, unten 2 s halten'],
-    ['adduktoren', 2, 10, 15, 'iso', 0, '']]],
+    ['adduktoren', 2, 10, 15, 'iso', 0, ''],
+    ['beinheben', 3, 10, 15, 'iso', 0, 'Becken einrollen, nicht schwingen. 0 kg = ohne Gewicht']]],
   obB: ['Oberkörper B', 'Flach-Fokus: Brust, Rücken, Seitheben, hintere Schulter', [
     ['sm_masch', 3, 10, 15, 'iso', 1, ''],
     ['hs_bench', 3, 5, 8, 'main', 0, 'Gewicht pro Seite'],
@@ -221,7 +225,7 @@ function repsAt(x, w) { return x.w === w ? x.r : Math.max(0, Math.round(30 * (e1
 // o.days = Tage seit der letzten Einheit, o.reset = Stagnation Stufe 1
 function nextPlan(e, h, inc, o = {}) {
   const n = e.s, cl = r => clamp(r, e.lo, e.hi), fill = r => Array(n).fill(r);
-  if (!h.length) return { w: null, reps: fill(midOf(e)), tag: 'new' };
+  if (!h.length) return { w: o.bw ? 0 : null, reps: fill(midOf(e)), tag: 'new' };
   const last = h[0].ex[e.id], w = workWeight(last), at = (a, i) => a[Math.min(i, a.length - 1)];
   // Geschaffte Wdh. mit dem Arbeitsgewicht (ein leichterer Einstiegssatz zählt nicht mit)
   const atW = last.filter(x => Math.abs(x.w - w) < 0.01), got = (atW.length ? atW : last).map(x => repsAt(x, w));

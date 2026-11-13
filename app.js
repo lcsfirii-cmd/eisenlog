@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '3.5.0';
+const APP_V = '3.6.0';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -48,6 +48,12 @@ function migrate(s) {
   if (s.planV === 7 && s.plan) {
     const x = s.plan.beinB && s.plan.beinB.x, i = x ? x.findIndex(e => e.id === 'pend_so') : -1;
     if (i > 0) x.unshift(x.splice(i, 1)[0]);
+    s.planV = 8;
+  }
+  if (s.planV === 8 && s.plan) {
+    const add = (k, id, sets, lo, hi, h) => { const x = s.plan[k] && s.plan[k].x; if (x && !x.some(e => e.id === id)) x.push({ id, s: sets, lo, hi, role: 'iso', rest: REST.iso, lp: false, h }); };
+    add('beinA', 'crunch', 3, 10, 15, 'Letzter Satz: Dropsatz erlaubt, nur den ersten Teil eintragen');
+    add('beinB', 'beinheben', 3, 10, 15, 'Becken einrollen, nicht schwingen. 0 kg = ohne Gewicht');
     s.planV = PLAN_V;
   }
   if (s.planV !== PLAN_V && (!s.planCustom || (s.planV || 0) < 5)) { s.plan = f.plan; s.planV = PLAN_V; s.planCustom = false; s.block = null; }
@@ -117,7 +123,7 @@ function isDeload(date) { return blockWeek(date) === BLOCK_WEEKS || (!!S.block.e
 const pace = () => paceOf(S.sessions);
 function optsFor(id) {
   const all = hist(id);
-  return { days: all.length ? Math.round((dateOf(todayIso()) - dateOf(all[0].date)) / DAY_MS) : 0, reset: needsReset(id) };
+  return { days: all.length ? Math.round((dateOf(todayIso()) - dateOf(all[0].date)) / DAY_MS) : 0, reset: needsReset(id), bw: !!(EX[id] && EX[id].bw) };
 }
 function planFor(e) { return nextPlan(e, histW(e.id), incOf(e.id), optsFor(e.id)); }
 // Stagnation Stufe 1: hängt seit 4 Einheiten und wurde noch nicht neu gestartet
