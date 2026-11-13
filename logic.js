@@ -19,25 +19,25 @@ const MUSCLE_PRIO = ['side', 'rear', 'chest', 'back', 'quads', 'hams', 'bi', 'tr
 
 // Übungskatalog: n = Name, g = Gruppe zum Tauschen, m = Hauptmuskel, m2 = Nebenmuskeln, inc = Standard-Schritt
 const EX = {
-  sh_kabel: { n: 'Kabel-Seitheben', g: 'seitl', m: 'side' },
+  sh_kabel: { n: 'Kabel-Seitheben', g: 'seitl', m: 'side', inc: 0.625 },
   sm_masch: { n: 'Seitheben-Maschine', g: 'seitl', m: 'side' },
-  sh_kh: { n: 'Kurzhantel-Seitheben', g: 'seitl', m: 'side' },
-  y_raise: { n: 'Y-Raises am Kabel', g: 'seitl', m: 'side', m2: ['rear'] },
-  sh_kabel2: { n: 'Kabel-Seitheben, 2. Runde', g: 'seitl', m: 'side' },
+  sh_kh: { n: 'Kurzhantel-Seitheben', g: 'seitl', m: 'side', inc: 2.5 },
+  y_raise: { n: 'Y-Raises am Kabel', g: 'seitl', m: 'side', m2: ['rear'], inc: 0.625 },
+  sh_kabel2: { n: 'Kabel-Seitheben, 2. Runde', g: 'seitl', m: 'side', inc: 0.625 },
   rev_bf: { n: 'Reverse Butterfly', g: 'hinten', m: 'rear' },
-  rev_kabel: { n: 'Reverse Flys am Kabel', g: 'hinten', m: 'rear' },
-  rev_kh: { n: 'Vorgebeugte KH-Reverse-Flys', g: 'hinten', m: 'rear' },
+  rev_kabel: { n: 'Reverse Flys am Kabel', g: 'hinten', m: 'rear', inc: 0.625 },
+  rev_kh: { n: 'Vorgebeugte KH-Reverse-Flys', g: 'hinten', m: 'rear', inc: 2.5 },
   hs_incl: { n: 'Iso-Lateral Incline (Hammer Strength)', g: 'brust_dr', m: 'chest', m2: ['tri'] },
   hs_incl2: { n: 'Iso-Lateral Incline (Hammer Strength)', g: 'brust_dr', m: 'chest', m2: ['tri'] },
   hs_bench: { n: 'Iso-Lateral Bench (Hammer Strength)', g: 'brust_dr', m: 'chest', m2: ['tri'] },
   hs_bench2: { n: 'Iso-Lateral Bench (Hammer Strength)', g: 'brust_dr', m: 'chest', m2: ['tri'] },
   mp_incl: { n: 'Schrägbankdrücken Multipresse', g: 'brust_dr', m: 'chest', m2: ['tri'] },
   mp_incl2: { n: 'Schrägbankdrücken Multipresse', g: 'brust_dr', m: 'chest', m2: ['tri'] },
-  kh_schraeg: { n: 'KH-Schrägbankdrücken', g: 'brust_dr', m: 'chest', m2: ['tri'] },
+  kh_schraeg: { n: 'KH-Schrägbankdrücken', g: 'brust_dr', m: 'chest', m2: ['tri'], inc: 2.5 },
   kabel_fly: { n: 'Kabel-Flys', g: 'brust_iso', m: 'chest' },
   butterfly: { n: 'Butterfly-Maschine', g: 'brust_iso', m: 'chest' },
   sd_masch: { n: 'Schulterdrücken (Hammer Strength)', g: 'schulterdr', m: 'front', m2: ['tri'] },
-  sd_kh: { n: 'Schulterdrücken Kurzhanteln', g: 'schulterdr', m: 'front', m2: ['tri'] },
+  sd_kh: { n: 'Schulterdrücken Kurzhanteln', g: 'schulterdr', m: 'front', m2: ['tri'], inc: 2.5 },
   mp_sd: { n: 'Schulterdrücken Multipresse', g: 'schulterdr', m: 'front', m2: ['tri', 'side'] },
   lat_einarm: { n: 'Latzug einarmig am Kabel', g: 'lat', m: 'back', m2: ['bi'] },
   lat_breit: { n: 'Latzug breit', g: 'lat', m: 'back', m2: ['bi'] },
@@ -49,19 +49,20 @@ const EX = {
   rstr: { n: 'Rückenstrecker-Maschine', g: 'unt_ruecken', m: 'low' },
   pend_do: { n: 'Pendulum / V-Squat', g: 'quads_dr', m: 'quads' },
   pend_so: { n: 'Pendulum / V-Squat', g: 'quads_dr', m: 'quads' },
-  presse: { n: 'Beinpresse, Füße tief', g: 'quads_dr', m: 'quads', inc: 5 },
+  presse: { n: 'Beinpresse', g: 'quads_dr', m: 'quads', inc: 5 },
+  presse_tief: { n: 'Beinpresse, Füße tief', g: 'quads_dr', m: 'quads', inc: 5 },
   presse_so: { n: 'Beinpresse, Füße hoch', g: 'quads_dr', m: 'quads', m2: ['hams'], inc: 5 },
   strecker: { n: 'Beinstrecker', g: 'quads_iso', m: 'quads' },
   bb_sitz: { n: 'Beinbeuger sitzend', g: 'hams', m: 'hams' },
   bb_lieg: { n: 'Beinbeuger liegend', g: 'hams', m: 'hams' },
-  rdl: { n: 'Rumänisches Kreuzheben mit Kurzhanteln', g: 'hams', m: 'hams', m2: ['low'] },
+  rdl: { n: 'Rumänisches Kreuzheben mit Kurzhanteln', g: 'hams', m: 'hams', m2: ['low'], inc: 2.5 },
   adduktoren: { n: 'Adduktoren-Maschine', g: 'add', m: 'add' },
   waden_steh: { n: 'Wadenheben stehend', g: 'waden', m: 'calves' },
   waden: { n: 'Wadenheben sitzend', g: 'waden', m: 'calves' },
-  curl_schraeg: { n: 'Schrägbank-Curls Kurzhanteln', g: 'bizeps', m: 'bi' },
+  curl_schraeg: { n: 'Schrägbank-Curls Kurzhanteln', g: 'bizeps', m: 'bi', inc: 2.5 },
   scott: { n: 'Scott-Curls Maschine', g: 'bizeps', m: 'bi' },
   curl_kabel: { n: 'Kabel-Curls', g: 'bizeps', m: 'bi' },
-  hammer: { n: 'Hammercurls', g: 'bizeps', m: 'bi' },
+  hammer: { n: 'Hammercurls', g: 'bizeps', m: 'bi', inc: 2.5 },
   sz_reverse: { n: 'SZ-Curls im Obergriff', g: 'bizeps', m: 'bi' },
   tri_oh: { n: 'Trizeps über Kopf am Kabel', g: 'trizeps', m: 'tri' },
   tri_seil: { n: 'Trizeps-Pushdown mit Seil', g: 'trizeps', m: 'tri' },
@@ -71,7 +72,7 @@ const EX = {
 };
 
 // Bei jeder Änderung am Startplan hochzählen, dann übernimmt die App den neuen Plan beim Start
-const PLAN_V = 6;
+const PLAN_V = 7;
 // Rolle: main = schwere Hauptübung (1–2 im Tank), comp = Grundübung (1–2 im Tank), iso = bis zum Versagen
 const REST = { main: 180, comp: 120, iso: 90 };
 const KNEE = 'Nur so tief, wie das Knie es mag';
@@ -89,7 +90,7 @@ const PLAN_RAW = {
   beinA: ['Beine A', 'Quads, Beinbeuger, Waden, unterer Rücken', [
     ['pend_do', 3, 5, 8, 'main', 0, KNEE],
     ['bb_sitz', 3, 10, 15, 'iso', 1, ''],
-    ['presse', 3, 8, 12, 'comp', 0, 'Füße tief und eng'],
+    ['presse_tief', 3, 8, 12, 'comp', 0, 'Füße tief und eng'],
     ['strecker', 3, 10, 15, 'iso', 1, ''],
     ['waden_steh', 3, 10, 15, 'iso', 1, 'Beine gestreckt, unten 2 s halten'],
     ['rstr', 2, 10, 15, 'iso', 0, '']]],
@@ -200,7 +201,10 @@ function sessStatus(sets) {
   const order = sets.slice().sort((a, b) => (a.t || 0) - (b.t || 0));
   for (const x of order) {
     const w = tgtW(x), r = tgtR(x);
-    if (w != null && x.w < w * 0.97 - 0.01) return 'bad'; // kleine Abweichungen = Raster des Geräts
+    if (w != null && x.w < w * 0.97 - 0.01) { // leichter als geplant: schlechter Tag, außer die Leistung war gleich gut
+      if (r == null || x.w * (1 + x.r / 30) < w * (1 + r / 30) * 0.98) return 'bad';
+      continue;
+    }
     if (r != null && x.r < r) return 'miss';
   }
   return 'hit';
@@ -237,7 +241,7 @@ function nextPlan(e, h, inc, o = {}) {
     const sum = l => l.filter(x => Math.abs(x.w - w) < 0.01).reduce((a, x) => a + x.r, 0);
     if (prev && sessStatus(prev.ex[e.id]) === 'miss' && Math.abs(workWeight(prev.ex[e.id]) - w) < 0.01 && sum(last) <= sum(prev.ex[e.id]) && w - inc > 0)
       return { w: r2(w - inc), reps: fill(Math.min(e.hi, e.lo + 2)), tag: 'down', d: inc };
-    return { w: planW, reps: Array.from({ length: n }, (_, i) => cl(Math.min(planR(i), at(got, i) + 1))), tag: 'hold' };
+    return { w: Math.max(w, planW), reps: Array.from({ length: n }, (_, i) => cl(Math.min(planR(i), at(got, i) + 1))), tag: 'hold' };
   }
   // Geschafft: +1 Wdh. pro Satz
   return { w, reps: Array.from({ length: n }, (_, i) => cl(at(got, i) + 1)), tag: 'more', d: 1 };

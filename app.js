@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '3.1.0';
+const APP_V = '3.2.0';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -38,6 +38,11 @@ function migrate(s) {
   // Neuer Startplan wird übernommen, solange Lucas den Plan nicht selbst geändert hat (Tauschen, Block-Anpassung)
   if (s.planV === 5 && s.plan) {
     for (const k in s.plan) for (const e of s.plan[k].x || []) { const to = { mp_incl: 'hs_incl', mp_incl2: 'hs_incl2' }[e.id]; if (to) { e.id = to; e.h = 'Gewicht pro Seite'; } }
+    s.planV = 6;
+  }
+  if (s.planV === 6 && s.plan) {
+    for (const k in s.plan) for (const e of s.plan[k].x || []) if (e.id === 'presse') e.id = 'presse_tief';
+    for (const x of s.sessions || []) if (x.date >= '2026-11-10' && x.ex && x.ex.presse) { x.ex.presse_tief = x.ex.presse.map(z => Object.assign({}, z, { pw: null, pr: null })); delete x.ex.presse; }
     s.planV = PLAN_V;
   }
   if (s.planV !== PLAN_V && (!s.planCustom || (s.planV || 0) < 5)) { s.plan = f.plan; s.planV = PLAN_V; s.planCustom = false; s.block = null; }
