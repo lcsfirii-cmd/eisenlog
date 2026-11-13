@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '3.4.1';
+const APP_V = '3.5.0';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -43,6 +43,11 @@ function migrate(s) {
   if (s.planV === 6 && s.plan) {
     for (const k in s.plan) for (const e of s.plan[k].x || []) if (e.id === 'presse') e.id = 'presse_tief';
     for (const x of s.sessions || []) if (x.date >= '2026-11-10' && x.ex && x.ex.presse) { x.ex.presse_tief = x.ex.presse.map(z => Object.assign({}, z, { pw: null, pr: null })); delete x.ex.presse; }
+    s.planV = 7;
+  }
+  if (s.planV === 7 && s.plan) {
+    const x = s.plan.beinB && s.plan.beinB.x, i = x ? x.findIndex(e => e.id === 'pend_so') : -1;
+    if (i > 0) x.unshift(x.splice(i, 1)[0]);
     s.planV = PLAN_V;
   }
   if (s.planV !== PLAN_V && (!s.planCustom || (s.planV || 0) < 5)) { s.plan = f.plan; s.planV = PLAN_V; s.planCustom = false; s.block = null; }

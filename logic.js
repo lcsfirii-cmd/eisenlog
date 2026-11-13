@@ -72,7 +72,7 @@ const EX = {
 };
 
 // Bei jeder Änderung am Startplan hochzählen, dann übernimmt die App den neuen Plan beim Start
-const PLAN_V = 7;
+const PLAN_V = 8;
 // Rolle: main = schwere Hauptübung (1–2 im Tank), comp = Grundübung (1–2 im Tank), iso = bis zum Versagen
 const REST = { main: 180, comp: 120, iso: 90 };
 const KNEE = 'Nur so tief, wie das Knie es mag';
@@ -105,9 +105,9 @@ const PLAN_RAW = {
     ['sz_reverse', 2, 10, 15, 'iso', 0, 'Obergriff'],
     ['tri_sz', 2, 10, 15, 'iso', 0, '']]],
   beinB: ['Beine B', 'Beinbeuger, Quads, Waden, Adduktoren', [
+    ['pend_so', 3, 8, 12, 'comp', 0, KNEE],
     ['rdl', 3, 6, 10, 'main', 0, 'Gewicht pro Hantel, Zughilfen'],
     ['bb_sitz', 4, 10, 15, 'iso', 1, ''],
-    ['pend_so', 3, 8, 12, 'comp', 0, KNEE],
     ['strecker', 2, 10, 15, 'iso', 1, ''],
     ['waden', 3, 10, 15, 'iso', 1, 'Beine angewinkelt, unten 2 s halten'],
     ['adduktoren', 2, 10, 15, 'iso', 0, '']]],
