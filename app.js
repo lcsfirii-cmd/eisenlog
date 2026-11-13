@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '3.0.0';
+const APP_V = '3.1.0';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -36,6 +36,10 @@ function fresh() {
 function migrate(s) {
   const f = fresh();
   // Neuer Startplan wird übernommen, solange Lucas den Plan nicht selbst geändert hat (Tauschen, Block-Anpassung)
+  if (s.planV === 5 && s.plan) {
+    for (const k in s.plan) for (const e of s.plan[k].x || []) { const to = { mp_incl: 'hs_incl', mp_incl2: 'hs_incl2' }[e.id]; if (to) { e.id = to; e.h = 'Gewicht pro Seite'; } }
+    s.planV = PLAN_V;
+  }
   if (s.planV !== PLAN_V && (!s.planCustom || (s.planV || 0) < 5)) { s.plan = f.plan; s.planV = PLAN_V; s.planCustom = false; s.block = null; }
   if (s.ov) for (const d of Object.keys(s.ov)) if (s.ov[d] && !DAY_KEYS.includes(s.ov[d])) delete s.ov[d];
   for (const k in f) if (s[k] === undefined) s[k] = f[k];

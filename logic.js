@@ -28,6 +28,7 @@ const EX = {
   rev_kabel: { n: 'Reverse Flys am Kabel', g: 'hinten', m: 'rear' },
   rev_kh: { n: 'Vorgebeugte KH-Reverse-Flys', g: 'hinten', m: 'rear' },
   hs_incl: { n: 'Iso-Lateral Incline (Hammer Strength)', g: 'brust_dr', m: 'chest', m2: ['tri'] },
+  hs_incl2: { n: 'Iso-Lateral Incline (Hammer Strength)', g: 'brust_dr', m: 'chest', m2: ['tri'] },
   hs_bench: { n: 'Iso-Lateral Bench (Hammer Strength)', g: 'brust_dr', m: 'chest', m2: ['tri'] },
   hs_bench2: { n: 'Iso-Lateral Bench (Hammer Strength)', g: 'brust_dr', m: 'chest', m2: ['tri'] },
   mp_incl: { n: 'Schrägbankdrücken Multipresse', g: 'brust_dr', m: 'chest', m2: ['tri'] },
@@ -70,7 +71,7 @@ const EX = {
 };
 
 // Bei jeder Änderung am Startplan hochzählen, dann übernimmt die App den neuen Plan beim Start
-const PLAN_V = 5;
+const PLAN_V = 6;
 // Rolle: main = schwere Hauptübung (1–2 im Tank), comp = Grundübung (1–2 im Tank), iso = bis zum Versagen
 const REST = { main: 180, comp: 120, iso: 90 };
 const KNEE = 'Nur so tief, wie das Knie es mag';
@@ -78,7 +79,7 @@ const KNEE = 'Nur so tief, wie das Knie es mag';
 const PLAN_RAW = {
   obA: ['Oberkörper A', 'Schrägbank-Fokus: Brust, Rücken, Seitheben, Arme', [
     ['sh_kabel', 3, 10, 15, 'iso', 1, ''],
-    ['mp_incl', 3, 5, 8, 'main', 0, 'Gewicht pro Seite, ohne Stange'],
+    ['hs_incl', 3, 5, 8, 'main', 0, 'Gewicht pro Seite'],
     ['tbar', 3, 5, 8, 'main', 0, 'Enger Griff'],
     ['hs_bench2', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite'],
     ['lat_breit', 3, 6, 10, 'comp', 0, ''],
@@ -113,7 +114,7 @@ const PLAN_RAW = {
     ['sm_masch', 3, 10, 15, 'iso', 1, ''],
     ['hs_bench', 3, 5, 8, 'main', 0, 'Gewicht pro Seite'],
     ['row_breit', 4, 6, 10, 'comp', 0, 'Breiter Griff, Zughilfen'],
-    ['mp_incl2', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite, ohne Stange'],
+    ['hs_incl2', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite'],
     ['lat_einarm', 4, 8, 12, 'comp', 0, 'Ellbogen Richtung Hüfte'],
     ['kabel_fly', 2, 10, 15, 'iso', 1, ''],
     ['rev_kabel', 2, 10, 15, 'iso', 0, '']]],
