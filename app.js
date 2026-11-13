@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '3.6.0';
+const APP_V = '3.6.1';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -53,7 +53,11 @@ function migrate(s) {
   if (s.planV === 8 && s.plan) {
     const add = (k, id, sets, lo, hi, h) => { const x = s.plan[k] && s.plan[k].x; if (x && !x.some(e => e.id === id)) x.push({ id, s: sets, lo, hi, role: 'iso', rest: REST.iso, lp: false, h }); };
     add('beinA', 'crunch', 3, 10, 15, 'Letzter Satz: Dropsatz erlaubt, nur den ersten Teil eintragen');
-    add('beinB', 'beinheben', 3, 10, 15, 'Becken einrollen, nicht schwingen. 0 kg = ohne Gewicht');
+    add('beinB', 'beinheben', 3, 10, 15, 'Frei hängend an der Stange, ohne Gewicht. Becken einrollen, nicht schwingen');
+    s.planV = 9;
+  }
+  if (s.planV === 9 && s.plan) {
+    for (const k in s.plan) for (const e of s.plan[k].x || []) if (e.id === 'beinheben') e.h = 'Frei hängend an der Stange, ohne Gewicht. Becken einrollen, nicht schwingen';
     s.planV = PLAN_V;
   }
   if (s.planV !== PLAN_V && (!s.planCustom || (s.planV || 0) < 5)) { s.plan = f.plan; s.planV = PLAN_V; s.planCustom = false; s.block = null; }
@@ -597,7 +601,8 @@ function tagHTML(p) {
     : t === 'pause' ? `<span class="tag down">${d} Tage Pause, leichter</span>`
     : t === 'reset' ? '<span class="tag down">Hängt: 10 % leichter, volle Spanne</span>'
     : t === 'deload' ? '<span class="tag new">Entlastung</span>'
-    : t === 'new' ? '<span class="tag new">Erstes Mal</span>' : '';
+    : t === 'new' ? '<span class="tag new">Erstes Mal</span>'
+    : t === 'bwmax' ? '<span class="tag up">Oben angekommen: langsamer ablassen oder Beine gestreckter</span>' : '';
 }
 function planHTML(D, id) {
   const x = D.ex[id], lh = hist(id)[0], tgt = fmtSets(x.sets, true);

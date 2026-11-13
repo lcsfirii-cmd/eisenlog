@@ -65,7 +65,7 @@ const EX = {
   hammer: { n: 'Hammercurls', g: 'bizeps', m: 'bi', inc: 2.5 },
   sz_reverse: { n: 'SZ-Curls im Obergriff', g: 'bizeps', m: 'bi' },
   crunch: { n: 'Crunch-Maschine', g: 'bauch', m: 'abs' },
-  beinheben: { n: 'Beinheben', g: 'bauch', m: 'abs', inc: 2.5, bw: true },
+  beinheben: { n: 'Beinheben hängend', g: 'bauch', m: 'abs', bw: true },
   tri_oh: { n: 'Trizeps über Kopf am Kabel', g: 'trizeps', m: 'tri' },
   tri_seil: { n: 'Trizeps-Pushdown mit Seil', g: 'trizeps', m: 'tri' },
   tri_stange: { n: 'Trizeps-Pushdown mit Stange', g: 'trizeps', m: 'tri' },
@@ -74,7 +74,7 @@ const EX = {
 };
 
 // Bei jeder Änderung am Startplan hochzählen, dann übernimmt die App den neuen Plan beim Start
-const PLAN_V = 9;
+const PLAN_V = 10;
 // Rolle: main = schwere Hauptübung (1–2 im Tank), comp = Grundübung (1–2 im Tank), iso = bis zum Versagen
 const REST = { main: 180, comp: 120, iso: 90 };
 const KNEE = 'Nur so tief, wie das Knie es mag';
@@ -114,7 +114,7 @@ const PLAN_RAW = {
     ['strecker', 2, 10, 15, 'iso', 1, ''],
     ['waden', 3, 10, 15, 'iso', 1, 'Beine angewinkelt, unten 2 s halten'],
     ['adduktoren', 2, 10, 15, 'iso', 0, ''],
-    ['beinheben', 3, 10, 15, 'iso', 0, 'Becken einrollen, nicht schwingen. 0 kg = ohne Gewicht']]],
+    ['beinheben', 3, 10, 15, 'iso', 0, 'Frei hängend an der Stange, ohne Gewicht. Becken einrollen, nicht schwingen']]],
   obB: ['Oberkörper B', 'Flach-Fokus: Brust, Rücken, Seitheben, hintere Schulter', [
     ['sm_masch', 3, 10, 15, 'iso', 1, ''],
     ['hs_bench', 3, 5, 8, 'main', 0, 'Gewicht pro Seite'],
@@ -238,6 +238,7 @@ function nextPlan(e, h, inc, o = {}) {
   const planW = workWeight(last.map(x => ({ w: tgtW(x) != null ? tgtW(x) : x.w })));
   const planR = i => cl(tgtR(at(last, i)) != null ? tgtR(at(last, i)) : at(got, i));
   if (st === 'bad') return { w: planW, reps: Array.from({ length: n }, (_, i) => planR(i)), tag: 'again' };
+  if (o.bw && last.length >= Math.min(n, 2) && got.every(r => r >= e.hi)) return { w, reps: fill(e.hi), tag: 'bwmax' };
   if (last.length >= Math.min(n, 2) && got.every(r => r >= e.hi)) return { w: r2(w + inc), reps: fill(e.lo), tag: 'up', d: inc };
   if (st === 'miss') {
     // Zweimal verfehlt und dabei nicht besser geworden → leichter. Wer trotzdem zulegt, bekommt das Ziel noch mal.
