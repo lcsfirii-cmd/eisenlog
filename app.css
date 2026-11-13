@@ -249,3 +249,6 @@ body[data-tab="food"] #week,body[data-tab="food"] #hero,body[data-tab="food"] #l
 .vr .bwin{width:100%;height:44px}
 button.hd{padding:4px 0;border-radius:10px}
 .hd.t{background:var(--accent-soft)}
+.bi{display:grid;grid-template-columns:1fr 44px 44px;gap:6px;align-items:center}
+.bi>button:not(.mi){height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:22px}
+.bi>button:disabled{opacity:.35}

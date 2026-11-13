@@ -54,24 +54,23 @@ const FOOD = {
     'Wasser 1,5 L': { wasser: 1 },
   },
   vorrat: {
-    milch: ['H-Milch', 'L', 1, '1 L'],
-    nektar: ['Bananennektar', 'L', 1, '1 L'],
-    muesli: ['Müsli', 'g', 750, '750 g'],
-    hafer: ['Haferflocken', 'g', 500, '500 g'],
-    nuss: ['Nüsse', 'g', 300, '300 g'],
-    banane: ['Bananen', 'Stück', 1, ''],
-    wasser: ['Wasser', 'Flaschen', 1, '1,5 L'],
-    pizza: ['TK-Pizza (Backup)', 'Stück', 1, ''],
-    whey: ['Whey', 'Portionen', 1, '', true],
-    iso: ['Isoclear', 'Portionen', 1, '', true],
+    milch: { n: 'H-Milch', u: 'L', p: 1, pl: '1 L', min: 3, soll: 7 },
+    nektar: { n: 'Bananennektar', u: 'L', p: 1, pl: '1 L', min: 3, soll: 7 },
+    muesli: { n: 'Müsli', u: 'g', p: 750, pl: '750 g', min: 3, soll: 7 },
+    hafer: { n: 'Haferflocken', u: 'g', p: 500, pl: '500 g', min: 3, soll: 7 },
+    nuss: { n: 'Nüsse', u: 'g', p: 300, pl: '300 g', min: 3, soll: 7 },
+    banane: { n: 'Bananen', u: 'Stück', p: 1, pl: '', min: 2, soll: 4 },
+    wasser: { n: 'Wasser', u: 'Flaschen', p: 1, pl: '1,5 L', min: 2, soll: 6 },
+    pizza: { n: 'TK-Pizza (Backup)', u: 'Stück', p: 1, pl: '', fest: 2 },
+    whey: { n: 'Whey', u: 'Portionen', p: 1, pl: '' },
+    iso: { n: 'Isoclear', u: 'Portionen', p: 1, pl: '' },
   },
-  einkaufTage: [2, 3, 4],
   abendessen: 'Abendessen',
   pizza: { n: 'TK-Pizza (Backup)', kcal: 950, vorrat: 2 },
 };
 
 const FL = 'eisenlog-food';
-let F = { saved: 0, d: {}, st: {}, h: 3, pk: 0 }, fSel = null;
+let F = { saved: 0, d: {}, st: {}, pk: 0 }, fSel = null;
 const kc = n => n.toLocaleString('de-DE');
 const fx = n => String(Math.round(n * 100) / 100).replace('.', ',');
 const toMin = s => +s.slice(0, 2) * 60 + +s.slice(3);
@@ -108,7 +107,7 @@ async function foodLoad() {
   try { a = JSON.parse((await idbGet('food')) || 'null'); } catch (e) {}
   try { b = JSON.parse(localStorage.getItem(FL) || 'null'); } catch (e) {}
   const s = a && b ? ((a.saved || 0) >= (b.saved || 0) ? a : b) : (a || b);
-  if (s) F = { saved: s.saved || 0, d: s.d || {}, st: s.st || (s.pz ? { pizza: +s.pz } : {}), h: s.h || 3, pk: +s.pk || 0 };
+  if (s) F = { saved: s.saved || 0, d: s.d || {}, st: s.st || (s.pz ? { pizza: +s.pz } : {}), pk: +s.pk || 0 };
 }
 function foodSave() {
   F.saved = Date.now();
@@ -121,9 +120,9 @@ function foodImport(j) {
   const arr = a => Array.isArray(a) ? a.filter(x => typeof x === 'string' && x.length < 200).slice(0, 60) : [];
   const num = (x, max) => x != null && isFinite(+x) && +x >= 0 && +x <= max ? +x : null;
   const map = o => { const out = {}; if (o && typeof o === 'object') for (const k in o) if (k in FOOD.vorrat && num(o[k], 1e5) != null) out[k] = +o[k]; return out; };
-  if (!Object.keys(F.d).length) { F.st = j.st ? map(j.st) : { pizza: num(j.pz, 50) || 0 }; F.h = FOOD.einkaufTage.includes(j.h) ? j.h : 3; F.pk = num(j.pk, 3000) || 0; }
+  if (!Object.keys(F.d).length) { F.st = j.st ? map(j.st) : { pizza: num(j.pz, 50) || 0 }; F.pk = num(j.pk, 3000) || 0; }
   for (const [d, r] of Object.entries(j.d || {})) if (DATE_RE.test(d) && r && typeof r === 'object' && !F.d[d])
-    F.d[d] = { c: arr(r.c), fr: !!r.fr, ae: num(r.ae, 5000), pp: r.pp ? 1 : 0, b: map(r.b), k: +r.k || 0, g: +r.g || 0 };
+    F.d[d] = { c: arr(r.c), fr: !!r.fr, ae: num(r.ae, 5000), pp: r.pp ? 1 : 0, b: map(r.b), q: map(r.q), k: +r.k || 0, g: +r.g || 0 };
   foodSave(); foodRender();
 }
 
@@ -135,17 +134,21 @@ function foodRender() {
   const nx = d === t && p.m.find(x => { const tt = x.z.match(/\d\d:\d\d/g); return tt && !x.pz && !r.c.includes(x.w) && toMin(tt[tt.length - 1]) + 60 >= nm; });
   const item = (a, v, on, cls, inner) => `<button class="mi${cls}${on ? ' on' : ''}" data-fact="${a}" data-v="${esc(v)}" aria-pressed="${on}">${inner}<i>${ICON_OK}</i></button>`;
   const cover = id => { let s = stk(id), i = 0; while (i < 7 && s + 1e-9 >= (U[i][id] || 0)) { s -= U[i][id] || 0; i++; } return i; };
-  const buy = Object.keys(FOOD.vorrat).filter(id => !FOOD.vorrat[id][4]).map(id => {
-    const [n, , pk, pl] = FOOD.vorrat[id], miss = (id === 'pizza' ? FOOD.pizza.vorrat : U.slice(0, F.h).reduce((a, u) => a + (u[id] || 0), 0)) - stk(id);
-    const packs = bt[id] ? Math.round(bt[id] / pk) : Math.max(0, Math.ceil(miss / pk - 1e-9));
-    return packs ? item('buy', `${id}:${packs * pk}`, !!bt[id], ' s', `<b>${packs}× ${esc(n)}${pl ? ' ' + pl : ''}</b>`) : '';
+  const need = (id, n) => U.slice(0, n).reduce((a, u) => a + (u[id] || 0), 0);
+  const isLow = id => { const v = FOOD.vorrat[id]; return v.fest ? stk(id) < v.fest : v.min ? stk(id) + 1e-9 < need(id, v.min) : false; };
+  const sugg = id => { const v = FOOD.vorrat[id]; return isLow(id) ? Math.max(1, Math.ceil(((v.fest || need(id, v.soll)) - stk(id)) / v.p - 1e-9)) : 0; };
+  const q = rt.q || {};
+  const buy = Object.keys(FOOD.vorrat).map(id => {
+    const { n, p: pk, pl } = FOOD.vorrat[id], s = sugg(id), packs = bt[id] ? Math.round(bt[id] / pk) : q[id] != null ? q[id] : s;
+    if (!bt[id] && q[id] == null && !s) return '';
+    const dis = bt[id] ? ' disabled' : '';
+    return `<div class="bi">${item('buy', `${id}:${packs * pk}`, !!bt[id], ' s', `<b>${packs}× ${esc(n)}${pl ? ' ' + pl : ''}</b>`)}<button data-fact="bq" data-v="${id}:${Math.max(0, packs - 1)}"${dis} aria-label="${esc(n)} weniger">−</button><button data-fact="bq" data-v="${id}:${packs + 1}"${dis} aria-label="${esc(n)} mehr">+</button></div>`;
   }).join('');
-  const shop = d !== t ? '' : `<div class="card"><h2>Einkaufszettel</h2><p>Was fehlt, damit es reicht für</p>
-      <div class="pick">${FOOD.einkaufTage.map(n => `<button data-fact="h" data-v="${n}"${F.h === n ? ' class="on"' : ''}>${n} Tage</button>`).join('')}</div>
+  const shop = d !== t ? '' : `<div class="card"><h2>Einkaufszettel</h2><p>Was knapp wird, aufgefüllt auf etwa eine Woche. Mit − / + anpassen.</p>
       ${buy ? `<div class="ml">${buy}</div><p class="note">Abhaken legt die Menge in den Vorrat.</p>` : '<p class="note ok">Alles da, nichts kaufen.</p>'}</div>`;
-  const low = Object.keys(FOOD.vorrat).filter(id => id !== 'pizza' && cover(id) < F.h).length;
-  const vor = d !== t ? '' : `<details class="card fd" data-k="vor"${op.vor ? ' open' : ''}><summary><b>Vorrat</b><span>${low ? `${low} ${low === 1 ? 'Produkt reicht' : 'Produkte reichen'} keine ${F.h} Tage` : 'Alles reicht'} · Abhaken im Tagesplan zieht automatisch ab</span></summary>
-      ${Object.entries(FOOD.vorrat).map(([id, [n, u, pk]]) => { const c = cover(id); return `<div class="vr"><span><b>${esc(n)}</b><small>${u}${id === 'pizza' ? ` · Soll ${FOOD.pizza.vorrat}` : ` · reicht ${c >= 7 ? '7+ Tage' : c === 1 ? '1 Tag' : c + ' Tage'}`}</small></span><button data-fact="st" data-v="${id}:-1" aria-label="${esc(n)} weniger">−</button><input data-st="${id}" class="bwin" inputmode="decimal" value="${fx(stk(id))}" aria-label="${esc(n)} Vorrat in ${u}"><button data-fact="st" data-v="${id}:1" aria-label="${esc(n)} mehr">+</button></div>`; }).join('')}
+  const low = Object.keys(FOOD.vorrat).filter(isLow).length;
+  const vor = d !== t ? '' : `<details class="card fd" data-k="vor"${op.vor ? ' open' : ''}><summary><b>Vorrat</b><span>${low ? `${low} ${low === 1 ? 'Produkt wird' : 'Produkte werden'} knapp` : 'Alles reicht'} · Abhaken im Tagesplan zieht automatisch ab</span></summary>
+      ${Object.entries(FOOD.vorrat).map(([id, { n, u, fest }]) => { const c = cover(id); return `<div class="vr"><span><b>${esc(n)}</b><small>${u}${fest ? ` · Soll ${fest}` : ` · reicht ${c >= 7 ? '7+ Tage' : c === 1 ? '1 Tag' : c + ' Tage'}`}</small></span><button data-fact="st" data-v="${id}:-1" aria-label="${esc(n)} weniger">−</button><input data-st="${id}" class="bwin" inputmode="decimal" value="${fx(stk(id))}" aria-label="${esc(n)} Vorrat in ${u}"><button data-fact="st" data-v="${id}:1" aria-label="${esc(n)} mehr">+</button></div>`; }).join('')}
       <p class="note">− / + ändert um eine Packung, ins Feld kannst du die genaue Menge tippen.</p></details>`;
   const dn = p.m.find(x => x.w === FOOD.abendessen), gap = dn && r.ae != null ? dn.k0 - r.ae : 0;
   const tip = r.ae == null ? '' : gap <= 0 ? 'Passt, kein Backup nötig.' : gap < 300 ? `Fehlen nur ca. ${kc(gap)} kcal, Pizza nicht nötig.` : `Fehlen ca. ${kc(gap)} kcal → Pizza dazu.`;
@@ -182,8 +185,8 @@ function foodDo(a, v) {
     if (r.ae != null && !r.c.includes(FOOD.abendessen)) r.c.push(FOOD.abendessen);
   } else if (a === 'pp') { addSt('pizza', -(+v - (r.pp || 0))); r.pp = +v; }
   else if (a === 'buy') { const [id, n] = v.split(':'); if (rt.b[id]) { addSt(id, -rt.b[id]); delete rt.b[id]; } else { addSt(id, +n); rt.b[id] = +n; } }
-  else if (a === 'st') { const [id, s] = v.split(':'); addSt(id, s * FOOD.vorrat[id][2]); }
-  else if (a === 'h') F.h = +v;
+  else if (a === 'st') { const [id, s] = v.split(':'); addSt(id, s * FOOD.vorrat[id].p); }
+  else if (a === 'bq') { const [id, n] = v.split(':'); (rt.q || (rt.q = {}))[id] = +n; }
   else if (a === 'pk') { const n = parseInt($('pkIn').value, 10); F.pk = n > 0 && n < 3000 ? n : 0; }
   const p = fdPlan(d);
   r.k = eatenOf(p, r); r.g = p.g;
