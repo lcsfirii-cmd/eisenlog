@@ -74,7 +74,7 @@ const EX = {
 };
 
 // Bei jeder Änderung am Startplan hochzählen, dann übernimmt die App den neuen Plan beim Start
-const PLAN_V = 10;
+const PLAN_V = 11;
 // Rolle: main = schwere Hauptübung (1–2 im Tank), comp = Grundübung (1–2 im Tank), iso = bis zum Versagen
 const REST = { main: 180, comp: 120, iso: 90 };
 const KNEE = 'Nur so tief, wie das Knie es mag';
@@ -86,7 +86,8 @@ const PLAN_RAW = {
     ['tbar', 3, 5, 8, 'main', 0, 'Enger Griff'],
     ['hs_bench2', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite'],
     ['lat_breit', 3, 6, 10, 'comp', 0, ''],
-    ['kabel_fly', 2, 10, 15, 'iso', 1, ''],
+    ['pullover', 2, 10, 15, 'iso', 1, 'Arme fast gestreckt, oben weit in die Dehnung'],
+    ['kabel_fly', 2, 10, 15, 'iso', 1, 'Von oben nach unten ziehen (untere Brust)'],
     ['curl_schraeg', 2, 8, 12, 'iso', 1, 'Gewicht pro Hantel'],
     ['tri_einarm', 2, 10, 15, 'iso', 0, '']]],
   beinA: ['Beine A', 'Quads, Beinbeuger, Waden, unterer Rücken', [
@@ -121,7 +122,7 @@ const PLAN_RAW = {
     ['row_breit', 4, 6, 10, 'comp', 0, 'Breiter Griff, Zughilfen'],
     ['hs_incl2', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite'],
     ['lat_einarm', 4, 8, 12, 'comp', 0, 'Ellbogen Richtung Hüfte'],
-    ['kabel_fly', 2, 10, 15, 'iso', 1, ''],
+    ['kabel_fly', 2, 10, 15, 'iso', 1, 'Von unten nach oben ziehen (obere Brust)'],
     ['rev_kabel', 2, 10, 15, 'iso', 0, '']]],
 };
 
