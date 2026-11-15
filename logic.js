@@ -46,6 +46,7 @@ const EX = {
   tbar: { n: 'T-Bar-Rudern eng', g: 'rudern', m: 'back', m2: ['bi', 'rear'] },
   row_kabel: { n: 'Kabelrudern eng', g: 'rudern', m: 'back', m2: ['bi', 'rear'] },
   row_breit: { n: 'Kabelrudern breit', g: 'rudern', m: 'back', m2: ['rear', 'bi'] },
+  row_masch: { n: 'Rudermaschine mit Scheiben, breit', g: 'rudern', m: 'back', m2: ['rear', 'bi'] },
   rstr: { n: 'Rückenstrecker-Maschine', g: 'unt_ruecken', m: 'low' },
   pend_do: { n: 'Pendulum / V-Squat', g: 'quads_dr', m: 'quads' },
   pend_so: { n: 'Pendulum / V-Squat', g: 'quads_dr', m: 'quads' },
@@ -74,7 +75,7 @@ const EX = {
 };
 
 // Bei jeder Änderung am Startplan hochzählen, dann übernimmt die App den neuen Plan beim Start
-const PLAN_V = 11;
+const PLAN_V = 12;
 // Rolle: main = schwere Hauptübung (1–2 im Tank), comp = Grundübung (1–2 im Tank), iso = bis zum Versagen
 const REST = { main: 180, comp: 120, iso: 90 };
 const KNEE = 'Nur so tief, wie das Knie es mag';
@@ -119,7 +120,7 @@ const PLAN_RAW = {
   obB: ['Oberkörper B', 'Flach-Fokus: Brust, Rücken, Seitheben, hintere Schulter', [
     ['sm_masch', 3, 10, 15, 'iso', 1, ''],
     ['hs_bench', 3, 5, 8, 'main', 0, 'Gewicht pro Seite'],
-    ['row_breit', 4, 6, 10, 'comp', 0, 'Breiter Griff, Zughilfen'],
+    ['row_masch', 4, 6, 10, 'comp', 0, 'Gewicht pro Seite, breiter Griff'],
     ['hs_incl2', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite'],
     ['lat_einarm', 4, 8, 12, 'comp', 0, 'Ellbogen Richtung Hüfte'],
     ['kabel_fly', 2, 10, 15, 'iso', 1, 'Von unten nach oben ziehen (obere Brust)'],

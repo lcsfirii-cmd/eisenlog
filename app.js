@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '3.7.0';
+const APP_V = '3.7.1';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -64,6 +64,10 @@ function migrate(s) {
     const a = s.plan.obA && s.plan.obA.x, b = s.plan.obB && s.plan.obB.x;
     if (a && !a.some(e => e.id === 'pullover')) { const i = a.findIndex(e => e.id === 'lat_breit'); a.splice(i < 0 ? a.length : i + 1, 0, { id: 'pullover', s: 2, lo: 10, hi: 15, role: 'iso', rest: REST.iso, lp: true, h: 'Arme fast gestreckt, oben weit in die Dehnung' }); }
     for (const [x, h] of [[a, 'Von oben nach unten ziehen (untere Brust)'], [b, 'Von unten nach oben ziehen (obere Brust)']]) if (x) for (const e of x) if (e.id === 'kabel_fly') e.h = h;
+    s.planV = 11;
+  }
+  if (s.planV === 11 && s.plan) {
+    for (const k in s.plan) for (const e of s.plan[k].x || []) if (e.id === 'row_breit') { e.id = 'row_masch'; e.h = 'Gewicht pro Seite, breiter Griff'; }
     s.planV = PLAN_V;
   }
   if (s.planV !== PLAN_V && (!s.planCustom || (s.planV || 0) < 5)) { s.plan = f.plan; s.planV = PLAN_V; s.planCustom = false; s.block = null; }
