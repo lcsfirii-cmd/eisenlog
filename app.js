@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '3.7.2';
+const APP_V = '3.8.0';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -13,7 +13,7 @@ const fw = w => w == null ? '–' : String(r2(w)).replace('.', ',');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const WDN = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 const WDS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-const SHORT = { obA: 'Ober A', beinA: 'Beine A', arme: 'Schulter', beinB: 'Beine B', obB: 'Ober B' };
+const SHORT = { obA: 'Ober A', beinA: 'Beine A', arme: 'Schulter', beinB: 'Beine B', obB: 'Ober B', pushA: 'Push A', pullA: 'Pull A', pushB: 'Push B', pullB: 'Pull B' };
 const OLD_DAYS = { ober: 'Oberkörper', unter: 'Unterkörper', push: 'Push', pull: 'Pull', beine: 'Beine' };
 const BLOCK_WEEKS = 6; // 5 Wochen Aufbau + 1 Entlastungswoche
 const ICON_X = '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
@@ -68,10 +68,16 @@ function migrate(s) {
   }
   if (s.planV === 11 && s.plan) {
     for (const k in s.plan) for (const e of s.plan[k].x || []) if (e.id === 'row_breit') { e.id = 'row_masch'; e.h = 'Gewicht pro Seite, breiter Griff'; }
+    s.planV = 12;
+  }
+  if (s.planV === 12 && s.plan) {
+    for (const k of VAC_KEYS) if (!s.plan[k]) s.plan[k] = f.plan[k];
+    s.ov = s.ov || {};
+    for (const [dt, k] of Object.entries(VAC.days)) if (dt >= todayIso() && !(dt in s.ov)) s.ov[dt] = k;
     s.planV = PLAN_V;
   }
   if (s.planV !== PLAN_V && (!s.planCustom || (s.planV || 0) < 5)) { s.plan = f.plan; s.planV = PLAN_V; s.planCustom = false; s.block = null; }
-  if (s.ov) for (const d of Object.keys(s.ov)) if (s.ov[d] && !DAY_KEYS.includes(s.ov[d])) delete s.ov[d];
+  if (s.ov) for (const d of Object.keys(s.ov)) if (s.ov[d] && !DAY_KEYS.includes(s.ov[d]) && !VAC_KEYS.includes(s.ov[d])) delete s.ov[d];
   for (const k in f) if (s[k] === undefined) s[k] = f[k];
   if (!s.block) s.block = { n: 1, start: mondayOf(todayIso()), early: '' };
   if (!s.stagFix) { for (const id of Object.keys(s.stag)) if (histOf(s.sessions, id).filter(x => !x.deload).slice(0, 4).some(x => sessStatus(x.ex[id]) === 'hit')) delete s.stag[id]; s.stagFix = 1; }
@@ -547,7 +553,7 @@ function renderMain() {
 
 function pickChips(date, cur) {
   const planned = WEEK0[dateOf(date).getDay()] || '';
-  return `<div class="pick">${DAY_KEYS.map(k => `<button data-act="pickday" data-date="${date}" data-k="${k}"${k === cur ? ' class="on"' : ''}>${esc(dayName(k))}</button>`).join('')}<button data-act="pickday" data-date="${date}" data-k=""${!cur ? ' class="on"' : ''}>Ruhetag</button></div>`
+  return `<div class="pick">${DAY_KEYS.concat(date <= VAC.end ? VAC_KEYS : []).map(k => `<button data-act="pickday" data-date="${date}" data-k="${k}"${k === cur ? ' class="on"' : ''}>${esc(dayName(k))}</button>`).join('')}<button data-act="pickday" data-date="${date}" data-k=""${!cur ? ' class="on"' : ''}>Ruhetag</button></div>`
     + (date in S.ov ? `<button class="link" data-act="pickday" data-date="${date}" data-k="plan">Zurück zum normalen Plan (${planned ? esc(dayName(planned)) : 'Ruhetag'})</button>` : '');
 }
 
@@ -958,7 +964,7 @@ function importText(txt) {
   S.inc = Object.assign(cleanMap(j.inc, v => typeof v === 'number' && v > 0 && v <= 20), S.inc);
   if (j.app === 'eisenlog') {
     const ov = {};
-    if (j.ov && typeof j.ov === 'object') for (const d of Object.keys(j.ov)) if (DATE_RE.test(d) && (j.ov[d] === '' || DAY_KEYS.includes(j.ov[d]))) ov[d] = j.ov[d];
+    if (j.ov && typeof j.ov === 'object') for (const d of Object.keys(j.ov)) if (DATE_RE.test(d) && (j.ov[d] === '' || DAY_KEYS.includes(j.ov[d]) || VAC_KEYS.includes(j.ov[d]))) ov[d] = j.ov[d];
     S.ov = Object.assign(ov, S.ov);
     const have = new Set(S.bw.map(p => p.d));
     if (Array.isArray(j.bw)) for (const p of j.bw) if (p && DATE_RE.test(p.d) && p.kg > 30 && p.kg < 250 && !have.has(p.d)) S.bw.push({ d: p.d, kg: r2(+p.kg) });

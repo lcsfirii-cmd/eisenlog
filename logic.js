@@ -4,6 +4,8 @@
    Die App braucht keine Bewertungen: Sie liest nur, ob die Ziele geschafft wurden. */
 
 const DAY_KEYS = ['obA', 'beinA', 'arme', 'beinB', 'obB'];
+const VAC_KEYS = ['pushA', 'pullA', 'pushB', 'pullB'];
+const VAC = { end: '2026-12-03', days: { '2026-11-23': 'pushA', '2026-11-24': 'pullA', '2026-11-25': 'beinA', '2026-11-26': 'pushB', '2026-11-27': 'pullB', '2026-11-28': 'beinB', '2026-11-29': '', '2026-11-30': 'pushA', '2026-12-01': 'pullA', '2026-12-02': 'beinA', '2026-12-03': '' } };
 // Wochentag (0 = Sonntag) → Einheit. Mo und Mi frei.
 const WEEK0 = { 2: 'obA', 4: 'beinA', 5: 'arme', 6: 'beinB', 0: 'obB' };
 const STEPS = [0.625, 1.25, 2, 2.5, 5, 10];
@@ -75,7 +77,7 @@ const EX = {
 };
 
 // Bei jeder Änderung am Startplan hochzählen, dann übernimmt die App den neuen Plan beim Start
-const PLAN_V = 12;
+const PLAN_V = 13;
 // Rolle: main = schwere Hauptübung (1–2 im Tank), comp = Grundübung (1–2 im Tank), iso = bis zum Versagen
 const REST = { main: 180, comp: 120, iso: 90 };
 const KNEE = 'Nur so tief, wie das Knie es mag';
@@ -125,11 +127,43 @@ const PLAN_RAW = {
     ['lat_einarm', 4, 8, 12, 'comp', 0, 'Ellbogen Richtung Hüfte'],
     ['kabel_fly', 2, 10, 15, 'iso', 1, 'Von unten nach oben ziehen (obere Brust)'],
     ['rev_kabel', 2, 10, 15, 'iso', 0, '']]],
+  pushA: ['Push A', 'Urlaub: Brust schwer, Seitheben, Trizeps', [
+    ['hs_incl', 4, 5, 8, 'main', 0, 'Gewicht pro Seite'],
+    ['hs_bench2', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite'],
+    ['kabel_fly', 3, 10, 15, 'iso', 1, 'Von oben nach unten ziehen (untere Brust)'],
+    ['sm_masch', 3, 10, 15, 'iso', 1, ''],
+    ['sh_kabel', 2, 10, 15, 'iso', 1, ''],
+    ['tri_oh', 3, 10, 15, 'iso', 1, ''],
+    ['tri_einarm', 2, 10, 15, 'iso', 0, '']]],
+  pullA: ['Pull A', 'Urlaub: Rücken-Breite, hintere Schulter, Bizeps', [
+    ['tbar', 4, 5, 8, 'main', 0, 'Enger Griff'],
+    ['lat_breit', 3, 6, 10, 'comp', 0, ''],
+    ['lat_einarm', 3, 8, 12, 'comp', 0, 'Ellbogen Richtung Hüfte'],
+    ['pullover', 2, 10, 15, 'iso', 1, 'Arme fast gestreckt, oben weit in die Dehnung'],
+    ['rev_kabel', 3, 10, 15, 'iso', 0, ''],
+    ['scott', 3, 8, 12, 'iso', 1, ''],
+    ['sz_reverse', 2, 10, 15, 'iso', 0, 'Obergriff']]],
+  pushB: ['Push B', 'Urlaub: Schultern zuerst, dann Brust, Trizeps', [
+    ['sm_masch', 4, 10, 15, 'iso', 1, ''],
+    ['mp_sd', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite, ohne Stange'],
+    ['sh_kabel', 3, 10, 15, 'iso', 1, ''],
+    ['hs_bench', 3, 5, 8, 'main', 0, 'Gewicht pro Seite'],
+    ['hs_incl2', 3, 6, 10, 'comp', 0, 'Gewicht pro Seite'],
+    ['kabel_fly', 2, 10, 15, 'iso', 1, 'Von unten nach oben ziehen (obere Brust)'],
+    ['tri_sz', 3, 10, 15, 'iso', 0, '']]],
+  pullB: ['Pull B', 'Urlaub: Rücken-Dicke, hintere Schulter, Bizeps', [
+    ['row_masch', 4, 6, 10, 'comp', 0, 'Gewicht pro Seite, breiter Griff'],
+    ['lat_breit', 3, 6, 10, 'comp', 0, ''],
+    ['lat_einarm', 3, 8, 12, 'comp', 0, 'Ellbogen Richtung Hüfte'],
+    ['rev_kh', 3, 10, 15, 'iso', 0, 'Gewicht pro Hantel'],
+    ['rev_kabel', 2, 10, 15, 'iso', 0, ''],
+    ['curl_schraeg', 3, 8, 12, 'iso', 1, 'Gewicht pro Hantel'],
+    ['sz_reverse', 2, 10, 15, 'iso', 0, 'Obergriff']]],
 };
 
 function makePlan() {
   const p = {};
-  for (const k of DAY_KEYS) {
+  for (const k of DAY_KEYS.concat(VAC_KEYS)) {
     const [n, f, x] = PLAN_RAW[k];
     p[k] = { n, f, x: x.map(([id, s, lo, hi, role, lp, h]) => ({ id, s, lo, hi, role, rest: REST[role], lp: !!lp, h })) };
   }
