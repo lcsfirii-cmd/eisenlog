@@ -1,7 +1,7 @@
 'use strict';
 /* Eisenlog – Oberfläche, Speichern und Sicherung. Gerechnet wird in logic.js. */
 
-const APP_V = '3.7.1';
+const APP_V = '3.7.2';
 const LS_KEY = 'eisenlog-state';
 const DAY_MS = 864e5;
 const $ = id => document.getElementById(id);
@@ -74,6 +74,7 @@ function migrate(s) {
   if (s.ov) for (const d of Object.keys(s.ov)) if (s.ov[d] && !DAY_KEYS.includes(s.ov[d])) delete s.ov[d];
   for (const k in f) if (s[k] === undefined) s[k] = f[k];
   if (!s.block) s.block = { n: 1, start: mondayOf(todayIso()), early: '' };
+  if (!s.stagFix) { for (const id of Object.keys(s.stag)) if (histOf(s.sessions, id).filter(x => !x.deload).slice(0, 4).some(x => sessStatus(x.ex[id]) === 'hit')) delete s.stag[id]; s.stagFix = 1; }
   return s;
 }
 function mondayOf(date) { const d = dateOf(date); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return iso(d); }
@@ -695,7 +696,7 @@ function renderSummary(s) {
     if (!h.length || h[0].id !== s.id) continue; // „Nächstes Mal“ nur für die neueste Einheit
     if (s.deload) continue;
     const p = planFor(entryOf(k, id));
-    const ch = p.tag === 'up' ? ` (+${fw(p.d)} kg)` : p.tag === 'down' ? ` (−${fw(p.d)} kg)` : p.tag === 'hold' ? ' (nochmal)' : p.tag === 'more' ? ` (+${p.d} Wdh.)` : '';
+    const ch = p.tag === 'up' ? ` (+${fw(p.d)} kg)` : p.tag === 'down' ? ` (−${fw(p.d)} kg)` : p.tag === 'hold' ? ' (nochmal)' : p.tag === 'more' ? ` (+${p.d} Wdh.)` : p.tag === 'reset' ? ' (hängt: 10 % leichter)' : '';
     nxt.push(`<li><span>${esc(exName(id))}</span><span class="${p.tag === 'up' || p.tag === 'more' ? 'up' : p.tag === 'down' || p.tag === 'hold' ? 'down' : ''}">${p.w == null ? '–' : fw(p.w)} kg × ${p.reps.join(' · ')}${ch}</span></li>`);
   }
   $('hero').innerHTML = `<div class="eyebrow">${dateLong(s.date)}</div><h1>${esc(dayName(k))} erledigt</h1>`;

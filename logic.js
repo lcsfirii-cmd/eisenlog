@@ -316,7 +316,7 @@ function estMinutes(sets, exercises, pace) {
 // Hängt eine Übung? E in den letzten 4 Einheiten nie mehr als 1 % über dem besten E davor
 function stalled(h, id) {
   const ser = eSeries(h, id).map(p => p.v);
-  if (ser.length < 5) return false;
+  if (ser.length < 5 || h.slice(0, 4).some(s => sessStatus(s.ex[id]) === 'hit')) return false;
   const best = Math.max(...ser.slice(0, -4));
   return ser.slice(-4).every(v => v <= best * 1.01);
 }
